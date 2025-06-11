@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MCP Browser Bridge</title>
+    <style>
+      body {
+        width: 350px;
+        padding: 16px;
+        font-family: Arial, sans-serif;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+      .connected {
+        background-color: #4caf50;
+      }
+      .disconnected {
+        background-color: #f44336;
+      }
+      .info {
+        background-color: #f5f5f5;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+      }
+      button {
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      button:hover {
+        background-color: #1976d2;
+      }
+      .log {
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        padding: 8px;
+        margin-top: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+        font-size: 12px;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>MCP Browser Bridge</h2>
+
+    <div class="status">
+      <div class="status-indicator" id="statusIndicator"></div>
+      <span id="statusText">Checking connection...</span>
+    </div>
+
+    <div class="info">
+      <strong>Server:</strong> <span id="serverUrl">ws://localhost:3000</span
+      ><br />
+      <strong>Available Tools:</strong> <span id="toolCount">0</span>
+    </div>
+
+    <button id="reconnectBtn">Reconnect</button>
+    <button id="testBtn">Test Connection</button>
+
+    <div class="log" id="log">
+      <div>Waiting for activity...</div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
