@@ -1,0 +1,12 @@
+{
+  "name": "opendia-server",
+  "version": "1.0.0",
+  "description": "MCP Server for OpenDia Browser Bridge",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.x.x"
+  }
+}
