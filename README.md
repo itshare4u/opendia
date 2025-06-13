@@ -1,4 +1,4 @@
-# OpenDia Browser Bridge
+# OpenDia ✳️
 
 OpenDia is an open alternative to Dia. Connect to your browser with MCP & do anything.
 > Exposes browser functions through the Model Context Protocol (MCP), allowing AI models to interact with browser capabilities.
