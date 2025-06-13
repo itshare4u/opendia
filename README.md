@@ -1,6 +1,7 @@
 # OpenDia Browser Bridge
 
-OpenDia is a Chrome Extension that exposes browser functions through the Model Context Protocol (MCP), allowing AI models to interact with browser capabilities.
+OpenDia is an open alternative to Dia. Connect to your browser with MCP & do anything.
+> Exposes browser functions through the Model Context Protocol (MCP), allowing AI models to interact with browser capabilities.
 
 ## ⚠️ Security Warning
 
