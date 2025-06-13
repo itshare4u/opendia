@@ -16,13 +16,13 @@ async function handleMCPRequest(request) {
   const { method, params, id } = request;
 
   // Handle notifications (no id means it's a notification)
-  if (!id && method.startsWith("notifications/")) {
+  if (!id && method && method.startsWith("notifications/")) {
     console.error(`Received notification: ${method}`);
     return null; // No response needed for notifications
   }
 
   // Handle requests that don't need implementation
-  if (!id) {
+  if (id === undefined || id === null) {
     return null; // No response for notifications
   }
 
@@ -31,6 +31,8 @@ async function handleMCPRequest(request) {
 
     switch (method) {
       case "initialize":
+        // RESPOND IMMEDIATELY - don't wait for extension
+        console.error(`MCP client initializing: ${params?.clientInfo?.name || "unknown"}`);
         result = {
           protocolVersion: "2024-11-05",
           capabilities: {
@@ -40,32 +42,71 @@ async function handleMCPRequest(request) {
             name: "browser-mcp-server",
             version: "1.0.0",
           },
+          instructions: "Browser automation tools via Chrome Extension bridge. Extension may take a moment to connect."
         };
         break;
 
       case "tools/list":
-        result = {
-          tools: availableTools.map((tool) => ({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-          })),
-        };
+        // Return tools even if extension not connected yet
+        if (availableTools.length > 0) {
+          result = {
+            tools: availableTools.map((tool) => ({
+              name: tool.name,
+              description: tool.description,
+              inputSchema: tool.inputSchema,
+            })),
+          };
+        } else {
+          // Return static tools with note that extension is connecting
+          result = {
+            tools: getStaticTools().map(tool => ({
+              ...tool,
+              description: tool.description + " (Extension connecting...)"
+            }))
+          };
+        }
         break;
 
       case "tools/call":
-        const toolResult = await callBrowserTool(
-          params.name,
-          params.arguments || {}
-        );
-        result = {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(toolResult, null, 2),
-            },
-          ],
-        };
+        if (!chromeExtensionSocket || chromeExtensionSocket.readyState !== WebSocket.OPEN) {
+          // Extension not connected - return helpful error
+          result = {
+            content: [
+              {
+                type: "text",
+                text: "❌ Chrome Extension not connected. Please install and activate the browser extension, then try again.\n\nSetup instructions:\n1. Go to chrome://extensions/\n2. Enable Developer mode\n3. Click 'Load unpacked' and select the extension folder\n4. Ensure the extension is active",
+              },
+            ],
+            isError: true
+          };
+        } else {
+          // Extension connected - try the tool call
+          try {
+            const toolResult = await callBrowserTool(
+              params.name,
+              params.arguments || {}
+            );
+            result = {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(toolResult, null, 2),
+                },
+              ],
+              isError: false
+            };
+          } catch (error) {
+            result = {
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Tool execution failed: ${error.message}`,
+                },
+              ],
+              isError: true
+            };
+          }
+        }
         break;
 
       case "resources/list":
@@ -93,6 +134,149 @@ async function handleMCPRequest(request) {
       },
     };
   }
+}
+
+// Static tool definitions for when extension isn't connected
+function getStaticTools() {
+  return [
+    {
+      name: "browser_navigate",
+      description: "Navigate to a URL in the active tab",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL to navigate to" }
+        },
+        required: ["url"]
+      }
+    },
+    {
+      name: "browser_get_tabs",
+      description: "Get all open browser tabs",
+      inputSchema: {
+        type: "object",
+        properties: {}
+      }
+    },
+    {
+      name: "browser_create_tab",
+      description: "Create a new browser tab",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL for new tab" },
+          active: { type: "boolean", description: "Make tab active" }
+        }
+      }
+    },
+    {
+      name: "browser_close_tab",
+      description: "Close a tab by ID",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "integer", description: "Tab ID to close" }
+        },
+        required: ["tabId"]
+      }
+    },
+    {
+      name: "browser_execute_script",
+      description: "Execute JavaScript in active tab",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "JavaScript code" }
+        },
+        required: ["code"]
+      }
+    },
+    {
+      name: "browser_get_page_content",
+      description: "Get page text content",
+      inputSchema: {
+        type: "object",
+        properties: {
+          selector: { type: "string", description: "CSS selector (optional)" }
+        }
+      }
+    },
+    {
+      name: "browser_take_screenshot",
+      description: "Take screenshot of active tab",
+      inputSchema: {
+        type: "object",
+        properties: {
+          format: { type: "string", enum: ["png", "jpeg"], description: "Image format" }
+        }
+      }
+    },
+    {
+      name: "browser_get_bookmarks",
+      description: "Get browser bookmarks",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query" }
+        }
+      }
+    },
+    {
+      name: "browser_add_bookmark",
+      description: "Add a bookmark",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Bookmark title" },
+          url: { type: "string", description: "Bookmark URL" }
+        },
+        required: ["title", "url"]
+      }
+    },
+    {
+      name: "browser_get_history",
+      description: "Search browser history",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query" },
+          maxResults: { type: "integer", description: "Max results" }
+        }
+      }
+    },
+    {
+      name: "browser_get_cookies",
+      description: "Get cookies for domain",
+      inputSchema: {
+        type: "object",
+        properties: {
+          domain: { type: "string", description: "Domain name" }
+        }
+      }
+    },
+    {
+      name: "browser_fill_form",
+      description: "Fill form on current page",
+      inputSchema: {
+        type: "object",
+        properties: {
+          formData: { type: "object", description: "Form field data" }
+        },
+        required: ["formData"]
+      }
+    },
+    {
+      name: "browser_click_element",
+      description: "Click element on page",
+      inputSchema: {
+        type: "object",
+        properties: {
+          selector: { type: "string", description: "CSS selector" }
+        },
+        required: ["selector"]
+      }
+    }
+  ];
 }
 
 // Call browser tool through Chrome Extension
