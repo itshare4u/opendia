@@ -1,24 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "OpenDia Browser Bridge",
-  "version": "1.0.0",
-  "description": "Exposes browser functions through Model Context Protocol",
+  "name": "OpenDia Enhanced Browser Automation",
+  "version": "2.0.0",
+  "description": "Enhanced browser automation through Model Context Protocol with pattern database and semantic analysis",
   "permissions": [
     "tabs",
     "activeTab",
     "storage",
-    "bookmarks",
-    "history",
-    "downloads",
-    "cookies",
-    "webNavigation",
     "scripting",
-    "nativeMessaging",
-    "contextMenus",
-    "notifications",
-    "alarms",
-    "clipboardRead",
-    "clipboardWrite"
+    "webNavigation",
+    "notifications"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -28,7 +19,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "OpenDia Browser Bridge"
+    "default_title": "OpenDia Enhanced Browser Automation"
   },
   "content_scripts": [
     {

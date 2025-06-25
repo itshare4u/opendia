@@ -1,13 +1,1804 @@
-// Content script for interacting with web pages
-console.log('MCP Browser Bridge content script loaded');
+// Enhanced Browser Automation Content Script
+console.log('OpenDia enhanced content script loaded');
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'getPageInfo') {
-    sendResponse({
-      title: document.title,
-      url: window.location.href,
-      content: document.body.innerText
+// Enhanced Pattern Database with Intent Categories
+const ENHANCED_PATTERNS = {
+  // Authentication patterns
+  "auth": {
+    "login": {
+      input: ["[type='email']", "[name*='username' i]", "[placeholder*='email' i]", "[name*='login' i]"],
+      password: ["[type='password']", "[name*='password' i]"],
+      submit: ["[type='submit']", "button[form]", ".login-btn", "[aria-label*='login' i]"],
+      confidence: 0.9
+    },
+    "signup": {
+      input: ["[name*='register' i]", "[placeholder*='signup' i]", "[name*='email' i]"],
+      submit: ["[href*='signup']", ".signup-btn", "[aria-label*='register' i]"],
+      confidence: 0.85
+    }
+  },
+  
+  // Content creation patterns  
+  "content": {
+    "post_create": {
+      textarea: ["[contenteditable='true']", "textarea[placeholder*='post' i]", "[data-text='true']"],
+      submit: ["[data-testid*='post']", ".post-btn", ".publish-btn", "[aria-label*='post' i]"],
+      confidence: 0.9
+    },
+    "comment": {
+      textarea: ["textarea[placeholder*='comment' i]", "[role='textbox']", "[placeholder*='reply' i]"],
+      submit: [".comment-btn", "[aria-label*='comment' i]", "[aria-label*='reply' i]"],
+      confidence: 0.8
+    }
+  },
+  
+  // Search patterns
+  "search": {
+    "global": {
+      input: ["[type='search']", "[role='searchbox']", "[placeholder*='search' i]", "[name*='search' i]"],
+      submit: ["[aria-label*='search' i]", ".search-btn", "button[type='submit']"],
+      confidence: 0.85
+    }
+  },
+  
+  // Navigation patterns
+  "nav": {
+    "menu": {
+      toggle: ["[aria-label*='menu' i]", ".menu-btn", ".hamburger", "[data-toggle='menu']"],
+      items: ["nav a", ".nav-item", "[role='menuitem']"],
+      confidence: 0.8
+    }
+  },
+  
+  // Form patterns
+  "form": {
+    "submit": {
+      button: ["[type='submit']", "button[form]", ".submit-btn", "[aria-label*='submit' i]"],
+      confidence: 0.85
+    },
+    "reset": {
+      button: ["[type='reset']", ".reset-btn", "[aria-label*='reset' i]"],
+      confidence: 0.8
+    }
+  }
+};
+
+// Legacy pattern database for backward compatibility
+const PATTERN_DATABASE = {
+  "twitter": {
+    "domains": ["twitter.com", "x.com"],
+    "patterns": {
+      "post_tweet": {
+        textarea: "[data-testid='tweetTextarea_0'], [contenteditable='true'][data-text='true']",
+        submit: "[data-testid='tweetButtonInline'], [data-testid='tweetButton']",
+        confidence: 0.95
+      },
+      "search": {
+        input: "[data-testid='SearchBox_Search_Input'], input[placeholder*='search' i]",
+        submit: "[data-testid='SearchBox_Search_Button']",
+        confidence: 0.90
+      }
+    }
+  },
+  "github": {
+    "domains": ["github.com"],
+    "patterns": {
+      "search": {
+        input: "input[placeholder*='Search' i].form-control",
+        submit: "button[type='submit']",
+        confidence: 0.85
+      }
+    }
+  },
+  "universal": {
+    "search": {
+      selectors: [
+        "input[type='search']",
+        "input[placeholder*='search' i]",
+        "[role='searchbox']",
+        "input[name*='search' i]"
+      ],
+      confidence: 0.60
+    },
+    "submit": {
+      selectors: [
+        "button[type='submit']:not([disabled])",
+        "input[type='submit']:not([disabled])",
+        "[role='button'][aria-label*='submit' i]"
+      ],
+      confidence: 0.65
+    }
+  }
+};
+
+// Token usage tracking and performance optimization
+class TokenOptimizer {
+  constructor() {
+    this.metrics = JSON.parse(localStorage.getItem('opendia_metrics') || '[]');
+    this.successRates = JSON.parse(localStorage.getItem('opendia_success_rates') || '{}');
+    this.recommendedMaxResults = 5;
+    this.lastCleanup = Date.now();
+  }
+
+  trackUsage(operation, tokenCount, success, pageType = 'unknown', method = 'unknown') {
+    const metric = {
+      operation,
+      tokens: tokenCount,
+      success,
+      pageType,
+      method,
+      timestamp: Date.now()
+    };
+    
+    this.metrics.push(metric);
+    
+    // Keep only last 100 metrics to prevent storage bloat
+    if (this.metrics.length > 100) {
+      this.metrics = this.metrics.slice(-100);
+    }
+    
+    // Auto-adjust limits based on success rates
+    this.adjustLimits();
+    
+    // Periodic cleanup (once per hour)
+    if (Date.now() - this.lastCleanup > 3600000) {
+      this.cleanup();
+    }
+    
+    // Persist to localStorage
+    localStorage.setItem('opendia_metrics', JSON.stringify(this.metrics));
+  }
+
+  adjustLimits() {
+    const recent = this.metrics.slice(-20);
+    if (recent.length < 10) return;
+    
+    const avgTokens = recent.reduce((sum, m) => sum + m.tokens, 0) / recent.length;
+    const successRate = recent.filter(m => m.success).length / recent.length;
+    
+    // If using too many tokens but success rate is high, reduce max results
+    if (avgTokens > 200 && successRate > 0.8) {
+      this.recommendedMaxResults = Math.max(3, this.recommendedMaxResults - 1);
+    } 
+    // If success rate is low, increase max results to get better matches
+    else if (successRate < 0.6) {
+      this.recommendedMaxResults = Math.min(10, this.recommendedMaxResults + 1);
+    }
+  }
+
+  cleanup() {
+    // Remove metrics older than 7 days
+    const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    this.metrics = this.metrics.filter(m => m.timestamp > cutoff);
+    
+    // Clean up success rates for rarely used combinations
+    const recentPageTypes = new Set(this.metrics.map(m => m.pageType));
+    Object.keys(this.successRates).forEach(key => {
+      const [pageType] = key.split(':');
+      if (!recentPageTypes.has(pageType)) {
+        delete this.successRates[key];
+      }
+    });
+    
+    localStorage.setItem('opendia_metrics', JSON.stringify(this.metrics));
+    localStorage.setItem('opendia_success_rates', JSON.stringify(this.successRates));
+    this.lastCleanup = Date.now();
+  }
+
+  trackMethodSuccess(pageType, intent, method, success) {
+    const key = `${pageType}:${intent}:${method}`;
+    if (!this.successRates[key]) {
+      this.successRates[key] = { attempts: 0, successes: 0 };
+    }
+    
+    this.successRates[key].attempts++;
+    if (success) {
+      this.successRates[key].successes++;
+    }
+    
+    localStorage.setItem('opendia_success_rates', JSON.stringify(this.successRates));
+  }
+
+  getBestMethod(pageType, intent) {
+    const methods = ['enhanced_pattern_match', 'pattern_database', 'viewport_scan', 'semantic_analysis'];
+    
+    return methods.sort((a, b) => {
+      const aKey = `${pageType}:${intent}:${a}`;
+      const bKey = `${pageType}:${intent}:${b}`;
+      const aRate = this.getSuccessRate(aKey);
+      const bRate = this.getSuccessRate(bKey);
+      return bRate - aRate;
+    })[0];
+  }
+
+  getSuccessRate(key) {
+    const data = this.successRates[key];
+    if (!data || data.attempts === 0) return 0;
+    return data.successes / data.attempts;
+  }
+
+  getRecommendedMaxResults() {
+    return this.recommendedMaxResults;
+  }
+
+  getAnalytics() {
+    const recent = this.metrics.slice(-50);
+    if (recent.length === 0) return { message: 'No metrics available' };
+    
+    const avgTokens = recent.reduce((sum, m) => sum + m.tokens, 0) / recent.length;
+    const successRate = recent.filter(m => m.success).length / recent.length;
+    const operationBreakdown = {};
+    const methodBreakdown = {};
+    
+    recent.forEach(m => {
+      operationBreakdown[m.operation] = (operationBreakdown[m.operation] || 0) + 1;
+      methodBreakdown[m.method] = (methodBreakdown[m.method] || 0) + 1;
+    });
+    
+    return {
+      totalOperations: recent.length,
+      avgTokensPerOperation: Math.round(avgTokens),
+      successRate: Math.round(successRate * 100),
+      recommendedMaxResults: this.recommendedMaxResults,
+      operationBreakdown,
+      methodBreakdown,
+      tokenSavings: this.calculateTokenSavings(recent)
+    };
+  }
+
+  calculateTokenSavings(metrics) {
+    // Estimate token savings vs naive approach
+    const actualTokens = metrics.reduce((sum, m) => sum + m.tokens, 0);
+    const estimatedNaiveTokens = metrics.length * 300; // Estimate for non-optimized approach
+    const savings = estimatedNaiveTokens - actualTokens;
+    const percentage = Math.round((savings / estimatedNaiveTokens) * 100);
+    
+    return {
+      actualTokens,
+      estimatedNaiveTokens,
+      tokensSaved: savings,
+      percentageSaved: percentage
+    };
+  }
+}
+
+class BrowserAutomation {
+  constructor() {
+    this.elementRegistry = new Map();
+    this.quickRegistry = new Map(); // For phase 1 quick matches
+    this.idCounter = 0;
+    this.quickIdCounter = 0;
+    this.tokenOptimizer = new TokenOptimizer();
+    this.setupMessageListener();
+    this.setupViewportAnalyzer();
+  }
+  
+  setupViewportAnalyzer() {
+    this.visibilityMap = new Map();
+    this.observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        this.visibilityMap.set(entry.target, {
+          visible: entry.isIntersecting,
+          ratio: entry.intersectionRatio
+        });
+      });
+    }, { threshold: [0, 0.1, 0.5, 1.0] });
+  }
+
+  setupMessageListener() {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      this.handleMessage(message).then(sendResponse).catch(error => {
+        sendResponse({
+          success: false,
+          error: error.message,
+          stack: error.stack
+        });
+      });
+      return true; // Keep message channel open for async response
     });
   }
-});
+
+  async handleMessage(message) {
+    const { action, data } = message;
+    const startTime = performance.now();
+    
+    try {
+      let result;
+      switch (action) {
+        case 'analyze':
+          result = await this.analyzePage(data);
+          break;
+        case 'extract_content':
+          result = await this.extractContent(data);
+          break;
+        case 'element_click':
+          result = await this.clickElement(data);
+          break;
+        case 'element_fill':
+          result = await this.fillElement(data);
+          break;
+        case 'wait_for':
+          result = await this.waitForCondition(data);
+          break;
+        case 'getPageInfo':
+          result = {
+            title: document.title,
+            url: window.location.href,
+            content: document.body.innerText
+          };
+          break;
+        case 'get_analytics':
+          result = this.tokenOptimizer.getAnalytics();
+          break;
+        case 'clear_analytics':
+          localStorage.removeItem('opendia_metrics');
+          localStorage.removeItem('opendia_success_rates');
+          this.tokenOptimizer = new TokenOptimizer();
+          result = { message: 'Analytics cleared successfully' };
+          break;
+        case 'get_element_state':
+          const element = this.getElementById(data.element_id);
+          if (!element) {
+            throw new Error(`Element not found: ${data.element_id}`);
+          }
+          result = {
+            element_id: data.element_id,
+            element_name: this.getElementName(element),
+            state: this.getElementState(element),
+            current_value: this.getElementValue(element)
+          };
+          break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+      
+      const executionTime = performance.now() - startTime;
+      const dataSize = new Blob([JSON.stringify(result)]).size;
+      
+      return {
+        success: true,
+        data: result,
+        execution_time: Math.round(executionTime),
+        data_size: dataSize,
+        timestamp: Date.now()
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        stack: error.stack,
+        execution_time: Math.round(performance.now() - startTime)
+      };
+    }
+  }
+
+  async analyzePage({ intent_hint, phase = 'discover', focus_areas, element_ids, max_results = 5 }) {
+    const startTime = performance.now();
+    
+    // Two-phase approach
+    if (phase === 'discover') {
+      return await this.quickDiscovery({ intent_hint, max_results });
+    } else if (phase === 'detailed') {
+      return await this.detailedAnalysis({ intent_hint, focus_areas, element_ids, max_results });
+    }
+    
+    // Legacy single-phase approach for backward compatibility
+    return await this.legacyAnalysis({ intent_hint, focus_area: focus_areas?.[0], max_results });
+  }
+
+  async quickDiscovery({ intent_hint, max_results = 5 }) {
+    const startTime = performance.now();
+    
+    // Detect page type and get basic metrics
+    const pageType = this.detectPageType();
+    const viewportElements = this.countViewportElements();
+    
+    // Use token optimizer recommendations
+    const recommendedMaxResults = this.tokenOptimizer.getRecommendedMaxResults();
+    max_results = Math.min(max_results, recommendedMaxResults);
+    
+    // Get best method based on historical performance
+    const bestMethod = this.tokenOptimizer.getBestMethod(pageType, intent_hint);
+    
+    // Try to find obvious matches using enhanced patterns
+    let quickMatches = [];
+    let usedMethod = 'quick_discovery';
+    
+    try {
+      if (bestMethod === 'enhanced_pattern_match' || bestMethod === 'pattern_database') {
+        const patternResult = await this.tryEnhancedPatterns(intent_hint);
+        if (patternResult.confidence > 0.7) {
+          quickMatches = patternResult.elements.slice(0, 3).map(el => this.compressElement(el, true));
+          usedMethod = 'enhanced_patterns';
+        }
+      }
+    } catch (error) {
+      console.warn('Enhanced patterns failed:', error);
+    }
+    
+    // If no pattern matches, do a quick viewport scan
+    if (quickMatches.length === 0) {
+      quickMatches = await this.quickViewportScan(intent_hint, 3);
+      usedMethod = 'viewport_scan';
+    }
+    
+    const intentMatch = this.scoreIntentMatch(intent_hint, quickMatches);
+    const suggestedAreas = this.suggestPhase2Areas(quickMatches, intent_hint);
+    const executionTime = Math.round(performance.now() - startTime);
+    
+    const result = {
+      summary: {
+        page_type: pageType,
+        intent_match: intentMatch,
+        element_count: viewportElements,
+        viewport_elements: quickMatches.length,
+        suggested_phase2: suggestedAreas
+      },
+      quick_matches: quickMatches,
+      token_estimate: this.estimatePhase2Tokens(quickMatches),
+      method: usedMethod,
+      execution_time: executionTime,
+      intent_hint: intent_hint, // Add this for server.js compatibility
+      elements: quickMatches // Add this for backward compatibility
+    };
+    
+    // Track token usage and success
+    const tokenCount = this.estimateTokenUsage(result);
+    const success = quickMatches.length > 0 && intentMatch !== 'none';
+    this.tokenOptimizer.trackUsage('page_analyze_discover', tokenCount, success, pageType, usedMethod);
+    this.tokenOptimizer.trackMethodSuccess(pageType, intent_hint, usedMethod, success);
+    
+    return result;
+  }
+
+  async detailedAnalysis({ intent_hint, focus_areas, element_ids, max_results = 10 }) {
+    const startTime = performance.now();
+    const pageType = this.detectPageType();
+    
+    // Use token optimizer recommendations
+    const recommendedMaxResults = this.tokenOptimizer.getRecommendedMaxResults();
+    max_results = Math.min(max_results, recommendedMaxResults + 2); // Allow slightly more for detailed analysis
+    
+    let elements = [];
+    let method = 'detailed_analysis';
+    
+    // Expand specific quick matches if provided
+    if (element_ids?.length) {
+      elements = await this.expandQuickMatches(element_ids);
+      method = 'expanded_matches';
+    }
+    
+    // Analyze specific focus areas
+    if (focus_areas?.length) {
+      const areaElements = await this.analyzeFocusAreas(focus_areas, intent_hint);
+      elements = [...elements, ...areaElements];
+      method = elements.length > 0 ? 'focus_area_analysis' : method;
+    }
+    
+    // If no specific analysis requested, do full enhanced analysis
+    if (elements.length === 0) {
+      elements = await this.fullEnhancedAnalysis(intent_hint, max_results);
+      method = 'full_enhanced_analysis';
+    }
+    
+    // Deduplicate and enhance with metadata
+    elements = this.deduplicateElements(elements);
+    elements = await this.enhanceElementMetadata(elements);
+    
+    // Apply compact fingerprinting
+    elements = elements.slice(0, max_results).map(el => this.compressElement(el, false));
+    
+    const executionTime = Math.round(performance.now() - startTime);
+    const result = {
+      elements,
+      interaction_ready: elements.every(el => el.conf > 50),
+      method,
+      execution_time: executionTime,
+      intent_hint: intent_hint // Add this for server.js compatibility
+    };
+    
+    // Track token usage and success
+    const tokenCount = this.estimateTokenUsage(result);
+    const success = elements.length > 0 && elements.some(el => el.conf > 70);
+    this.tokenOptimizer.trackUsage('page_analyze_detailed', tokenCount, success, pageType, method);
+    this.tokenOptimizer.trackMethodSuccess(pageType, intent_hint, method, success);
+    
+    return result;
+  }
+
+  async legacyAnalysis({ intent_hint, focus_area, max_results = 5 }) {
+    const startTime = performance.now();
+    let result;
+    
+    try {
+      // Try enhanced patterns first
+      result = await this.tryEnhancedPatterns(intent_hint);
+      if (result.confidence > 0.8) {
+        return this.formatAnalysisResult(result, 'enhanced_patterns', startTime);
+      }
+    } catch (error) {
+      console.warn('Enhanced patterns failed, trying legacy patterns:', error);
+      try {
+        // Fallback to legacy pattern database
+        result = await this.tryPatternDatabase(intent_hint);
+        if (result.confidence > 0.8) {
+          return this.formatAnalysisResult(result, 'pattern_database', startTime);
+        }
+      } catch (legacyError) {
+        console.warn('Legacy pattern database failed:', legacyError);
+      }
+    }
+    
+    // Final fallback to semantic analysis
+    result = await this.trySemanticAnalysis(intent_hint, focus_area);
+    return this.formatAnalysisResult(result, 'semantic_analysis', startTime);
+  }
+
+  async tryEnhancedPatterns(intent_hint) {
+    const [category, action] = this.parseIntent(intent_hint);
+    const pattern = ENHANCED_PATTERNS[category]?.[action];
+    
+    if (!pattern) {
+      return this.tryUniversalPatterns(intent_hint);
+    }
+    
+    const elements = this.findPatternElements(pattern);
+    return {
+      elements: elements.slice(0, 3),
+      confidence: pattern.confidence,
+      method: 'enhanced_pattern_match',
+      category,
+      action
+    };
+  }
+
+  parseIntent(intent) {
+    const intentLower = intent.toLowerCase();
+    
+    // Check for authentication patterns
+    if (intentLower.includes('login') || intentLower.includes('sign in') || intentLower.includes('log in')) {
+      return ['auth', 'login'];
+    }
+    if (intentLower.includes('signup') || intentLower.includes('sign up') || intentLower.includes('register') || intentLower.includes('create account')) {
+      return ['auth', 'signup'];
+    }
+    
+    // Check for content creation patterns
+    if (intentLower.includes('tweet') || intentLower.includes('post') || intentLower.includes('compose') || 
+        intentLower.includes('create') || intentLower.includes('write') || intentLower.includes('publish')) {
+      return ['content', 'post_create'];
+    }
+    if (intentLower.includes('comment') || intentLower.includes('reply')) {
+      return ['content', 'comment'];
+    }
+    
+    // Check for search patterns
+    if (intentLower.includes('search') || intentLower.includes('find') || intentLower.includes('look for')) {
+      return ['search', 'global'];
+    }
+    
+    // Check for navigation patterns
+    if (intentLower.includes('menu') || intentLower.includes('navigation') || intentLower.includes('nav')) {
+      return ['nav', 'menu'];
+    }
+    
+    // Check for form patterns
+    if (intentLower.includes('submit') || intentLower.includes('send') || intentLower.includes('save')) {
+      return ['form', 'submit'];
+    }
+    if (intentLower.includes('reset') || intentLower.includes('clear') || intentLower.includes('cancel')) {
+      return ['form', 'reset'];
+    }
+    
+    // Fallback - try to infer from context
+    if (intentLower.includes('button') || intentLower.includes('click')) {
+      return ['form', 'submit'];
+    }
+    if (intentLower.includes('input') || intentLower.includes('field') || intentLower.includes('text')) {
+      return ['content', 'post_create'];
+    }
+    
+    // Default fallback
+    return ['content', 'post_create']; // More useful default than search
+  }
+
+  findPatternElements(pattern) {
+    const elements = [];
+    
+    for (const [elementType, selectors] of Object.entries(pattern)) {
+      if (elementType === 'confidence') continue;
+      
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (element && this.isLikelyVisible(element)) {
+          const elementId = this.registerElement(element);
+          elements.push({
+            id: elementId,
+            type: elementType,
+            selector: selector,
+            name: this.getElementName(element),
+            confidence: pattern.confidence || 0.8,
+            element: element
+          });
+          break; // Take first match per element type
+        }
+      }
+    }
+    
+    return elements;
+  }
+
+  tryUniversalPatterns(intent_hint) {
+    const intentLower = intent_hint.toLowerCase();
+    let selectors = [];
+    
+    // Content creation patterns
+    if (intentLower.includes('tweet') || intentLower.includes('post') || intentLower.includes('compose') || 
+        intentLower.includes('create') || intentLower.includes('write')) {
+      selectors = [
+        "[contenteditable='true']", 
+        "textarea[placeholder*='tweet' i]", 
+        "textarea[placeholder*='post' i]",
+        "textarea[placeholder*='what' i]",
+        "[data-text='true']",
+        "[role='textbox']",
+        "textarea:not([style*='display: none'])"
+      ];
+    }
+    // Authentication patterns  
+    else if (intentLower.includes('login') || intentLower.includes('sign in')) {
+      selectors = [
+        "[type='email']", 
+        "[name*='username' i]", 
+        "[placeholder*='email' i]",
+        "[placeholder*='username' i]",
+        "input[name*='login' i]"
+      ];
+    }
+    else if (intentLower.includes('signup') || intentLower.includes('register')) {
+      selectors = [
+        "[href*='signup']", 
+        ".signup-btn", 
+        "[aria-label*='register' i]",
+        "button[data-testid*='signup' i]",
+        "a[href*='register']"
+      ];
+    }
+    // Search patterns
+    else if (intentLower.includes('search') || intentLower.includes('find')) {
+      selectors = [
+        "[type='search']", 
+        "[role='searchbox']", 
+        "[placeholder*='search' i]",
+        "[data-testid*='search' i]",
+        "input[name*='search' i]"
+      ];
+    }
+    // Generic fallback - look for interactive elements
+    else {
+      selectors = [
+        "button:not([disabled])",
+        "[contenteditable='true']",
+        "textarea",
+        "[type='submit']",
+        "[role='button']",
+        "input[type='text']"
+      ];
+    }
+    
+    const elements = [];
+    
+    for (const selector of selectors) {
+      const foundElements = document.querySelectorAll(selector);
+      for (const element of foundElements) {
+        if (this.isLikelyVisible(element)) {
+          const elementId = this.registerElement(element);
+          elements.push({
+            id: elementId,
+            type: this.inferElementType(element, intent_hint),
+            selector: selector,
+            name: this.getElementName(element),
+            confidence: 0.5 + (this.calculateConfidence(element, intent_hint) * 0.3),
+            element: element
+          });
+          if (elements.length >= 3) break; // Limit to 3 elements
+        }
+      }
+      if (elements.length >= 3) break;
+    }
+    
+    return {
+      elements,
+      confidence: elements.length > 0 ? Math.max(...elements.map(e => e.confidence)) : 0,
+      method: 'universal_pattern'
+    };
+  }
+
+  async tryPatternDatabase(intentHint) {
+    const hostname = window.location.hostname;
+    const siteKey = this.detectSite(hostname);
+    
+    if (siteKey === 'universal') {
+      return this.getUniversalPattern(intentHint);
+    }
+    
+    const siteConfig = PATTERN_DATABASE[siteKey];
+    const pattern = siteConfig?.patterns?.[intentHint];
+    
+    if (!pattern) {
+      throw new Error(`No pattern found for ${intentHint} on ${siteKey}`);
+    }
+    
+    const elements = [];
+    for (const [elementType, selector] of Object.entries(pattern)) {
+      if (elementType === 'confidence') continue;
+      
+      const element = document.querySelector(selector);
+      if (element) {
+        const elementId = this.registerElement(element);
+        elements.push({
+          id: elementId,
+          type: elementType,
+          selector: selector,
+          name: this.getElementName(element),
+          confidence: pattern.confidence || 0.8
+        });
+      }
+    }
+    
+    return {
+      elements,
+      confidence: pattern.confidence || 0.8,
+      site: siteKey
+    };
+  }
+
+  detectSite(hostname) {
+    for (const [siteKey, config] of Object.entries(PATTERN_DATABASE)) {
+      if (siteKey === 'universal') continue;
+      if (config.domains?.some(domain => 
+        hostname === domain || hostname.endsWith(`.${domain}`)
+      )) {
+        return siteKey;
+      }
+    }
+    return 'universal';
+  }
+
+  getUniversalPattern(intentHint) {
+    const universalPatterns = PATTERN_DATABASE.universal;
+    const pattern = universalPatterns[intentHint];
+    
+    if (!pattern) {
+      throw new Error(`No universal pattern for ${intentHint}`);
+    }
+    
+    const elements = [];
+    for (const selector of pattern.selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const elementId = this.registerElement(element);
+        elements.push({
+          id: elementId,
+          type: intentHint,
+          selector: selector,
+          name: this.getElementName(element),
+          confidence: pattern.confidence
+        });
+        break; // Take first match for universal patterns
+      }
+    }
+    
+    return {
+      elements,
+      confidence: pattern.confidence,
+      site: 'universal'
+    };
+  }
+
+  async trySemanticAnalysis(intentHint, focusArea) {
+    const relevantElements = document.querySelectorAll(`
+      button, input, select, textarea, a[href],
+      [role="button"], [role="textbox"], [role="searchbox"],
+      [aria-label], [data-testid]
+    `);
+    
+    const elements = Array.from(relevantElements)
+      .filter(el => this.isVisible(el))
+      .slice(0, 20)
+      .map(element => {
+        const elementId = this.registerElement(element);
+        return {
+          id: elementId,
+          type: this.inferElementType(element, intentHint),
+          selector: this.generateSelector(element),
+          name: this.getElementName(element),
+          confidence: this.calculateConfidence(element, intentHint)
+        };
+      })
+      .filter(el => el.confidence > 0.3)
+      .sort((a, b) => b.confidence - a.confidence);
+    
+    return {
+      elements,
+      confidence: elements.length > 0 ? Math.max(...elements.map(e => e.confidence)) : 0
+    };
+  }
+
+  async extractContent({ content_type, max_items = 20, summarize = true }) {
+    const startTime = performance.now();
+    const extractors = {
+      'article': () => this.extractArticleContent(),
+      'search_results': () => this.extractSearchResults(max_items),
+      'posts': () => this.extractPosts(max_items)
+    };
+    
+    const extractor = extractors[content_type];
+    if (!extractor) {
+      throw new Error(`Unknown content type: ${content_type}`);
+    }
+    
+    const rawContent = extractor();
+    
+    if (summarize) {
+      // Return summary instead of full content to save tokens
+      return {
+        content_type,
+        summary: this.summarizeContent(rawContent, content_type),
+        items_found: Array.isArray(rawContent) ? rawContent.length : 1,
+        sample_items: Array.isArray(rawContent) ? rawContent.slice(0, 3) : [rawContent],
+        extraction_method: this.getExtractionMethod(content_type),
+        token_estimate: this.estimateContentTokens(rawContent),
+        execution_time: Math.round(performance.now() - startTime),
+        extracted_at: new Date().toISOString()
+      };
+    } else {
+      // Legacy full content extraction
+      return {
+        content: rawContent,
+        method: 'semantic_extraction',
+        content_type: content_type,
+        execution_time: Math.round(performance.now() - startTime),
+        extracted_at: new Date().toISOString()
+      };
+    }
+  }
+
+  extractArticleContent() {
+    const article = document.querySelector('article, [role="article"], .article-content, main');
+    const title = document.querySelector('h1, .article-title, .post-title')?.textContent?.trim();
+    const content = article?.textContent?.trim() || this.extractMainContent();
+    
+    return {
+      title,
+      content,
+      word_count: content?.split(/\s+/).length || 0
+    };
+  }
+
+  extractMainContent() {
+    // Simple heuristic to find main content
+    const candidates = document.querySelectorAll('main, .content, .post-content, .article-body');
+    let bestCandidate = null;
+    let maxTextLength = 0;
+    
+    for (const candidate of candidates) {
+      const textLength = candidate.textContent.trim().length;
+      if (textLength > maxTextLength) {
+        maxTextLength = textLength;
+        bestCandidate = candidate;
+      }
+    }
+    
+    return bestCandidate?.textContent?.trim() || document.body.textContent.trim();
+  }
+
+  extractSearchResults(max_items = 20) {
+    // Common search result patterns
+    const selectors = [
+      '.search-result, .result-item, [data-testid*="result"]',
+      '.g, .result, .search-item', // Google-style
+      'li[data-testid="search-result"], .SearchResult', // Twitter/X
+      '.Box-row, .issue-list-item', // GitHub
+      'article, .post, .entry' // Generic content
+    ];
+    
+    let results = [];
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        results = Array.from(elements).slice(0, max_items).map((el, index) => ({
+          index: index + 1,
+          title: this.extractResultTitle(el),
+          summary: this.extractResultSummary(el),
+          link: this.extractResultLink(el),
+          type: this.detectResultType(el),
+          score: this.scoreSearchResult(el)
+        }));
+        break;
+      }
+    }
+    
+    return results;
+  }
+
+  extractPosts(max_items = 20) {
+    // Social media post patterns
+    const selectors = [
+      '[data-testid="tweet"], .tweet, .post',
+      'article[role="article"]', // Twitter/X posts
+      '.timeline-item, .feed-item',
+      '.status, .update, .entry'
+    ];
+    
+    let posts = [];
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        posts = Array.from(elements).slice(0, max_items).map((el, index) => ({
+          index: index + 1,
+          text: this.extractPostText(el),
+          author: this.extractPostAuthor(el),
+          timestamp: this.extractPostTimestamp(el),
+          metrics: this.extractPostMetrics(el),
+          has_media: this.hasPostMedia(el),
+          post_type: this.detectPostType(el)
+        }));
+        break;
+      }
+    }
+    
+    return posts;
+  }
+
+  // Content summarization methods
+  summarizeContent(content, content_type) {
+    switch(content_type) {
+      case 'article':
+        return this.summarizeArticle(content);
+      case 'search_results':
+        return this.summarizeSearchResults(content);
+      case 'posts':
+        return this.summarizePosts(content);
+      default:
+        return { summary: 'Unknown content type' };
+    }
+  }
+
+  summarizeArticle(content) {
+    return {
+      title: content.title || 'Untitled',
+      word_count: content.word_count || 0,
+      reading_time: Math.ceil((content.word_count || 0) / 200),
+      has_images: document.querySelectorAll('img').length > 0,
+      has_videos: document.querySelectorAll('video, iframe[src*="youtube"], iframe[src*="vimeo"]').length > 0,
+      preview: content.content?.substring(0, 200) + (content.content?.length > 200 ? '...' : ''),
+      estimated_tokens: Math.ceil((content.content?.length || 0) / 4)
+    };
+  }
+
+  summarizeSearchResults(results) {
+    const domains = results.map(r => r.link).filter(Boolean)
+      .map(url => {
+        try { return new URL(url).hostname; } catch { return null; }
+      }).filter(Boolean);
+    
+    return {
+      total_results: results.length,
+      result_types: [...new Set(results.map(r => r.type))],
+      top_domains: this.getTopDomains(domains),
+      avg_score: results.reduce((sum, r) => sum + (r.score || 0), 0) / results.length,
+      has_sponsored: results.some(r => r.type === 'sponsored'),
+      quality_score: this.calculateQualityScore(results)
+    };
+  }
+
+  summarizePosts(posts) {
+    const totalTextLength = posts.reduce((sum, p) => sum + (p.text?.length || 0), 0);
+    const totalLikes = posts.reduce((sum, p) => sum + (p.metrics?.likes || 0), 0);
+    
+    return {
+      post_count: posts.length,
+      avg_length: Math.round(totalTextLength / posts.length),
+      has_media_count: posts.filter(p => p.has_media).length,
+      engagement_total: totalLikes,
+      avg_engagement: Math.round(totalLikes / posts.length),
+      post_types: [...new Set(posts.map(p => p.post_type))],
+      authors: [...new Set(posts.map(p => p.author).filter(Boolean))].length,
+      estimated_tokens: Math.ceil(totalTextLength / 4)
+    };
+  }
+
+  // Helper methods for extraction
+  extractResultTitle(element) {
+    const titleSelectors = ['h1, h2, h3, .title, .headline, [data-testid*="title"]'];
+    for (const selector of titleSelectors) {
+      const title = element.querySelector(selector)?.textContent?.trim();
+      if (title) return title.substring(0, 100);
+    }
+    return element.textContent?.trim()?.substring(0, 50) || 'No title';
+  }
+
+  extractResultSummary(element) {
+    const summarySelectors = ['.summary, .description, .snippet, .excerpt'];
+    for (const selector of summarySelectors) {
+      const summary = element.querySelector(selector)?.textContent?.trim();
+      if (summary) return summary.substring(0, 200);
+    }
+    return element.textContent?.trim()?.substring(0, 150) || '';
+  }
+
+  extractResultLink(element) {
+    const link = element.querySelector('a[href]')?.href || 
+                 element.closest('a[href]')?.href ||
+                 element.getAttribute('href');
+    return link || null;
+  }
+
+  detectResultType(element) {
+    if (element.textContent?.toLowerCase().includes('sponsored') || 
+        element.querySelector('.ad, .sponsored')) return 'sponsored';
+    if (element.querySelector('img, video')) return 'media';
+    if (element.querySelector('.price, .cost')) return 'product';
+    return 'organic';
+  }
+
+  scoreSearchResult(element) {
+    let score = 0.5;
+    if (element.querySelector('h1, h2, h3')) score += 0.2;
+    if (element.querySelector('img')) score += 0.1;
+    if (element.textContent?.length > 100) score += 0.1;
+    if (element.querySelector('a[href]')) score += 0.1;
+    return Math.min(score, 1.0);
+  }
+
+  extractPostText(element) {
+    const textSelectors = [
+      '[data-testid="tweetText"], .tweet-text',
+      '.post-content, .entry-content',
+      '.status-content, .message-content'
+    ];
+    
+    for (const selector of textSelectors) {
+      const text = element.querySelector(selector)?.textContent?.trim();
+      if (text) return text.substring(0, 280);
+    }
+    
+    return element.textContent?.trim()?.substring(0, 280) || '';
+  }
+
+  extractPostAuthor(element) {
+    const authorSelectors = [
+      '[data-testid="User-Name"], .username',
+      '.author, .user-name, .handle'
+    ];
+    
+    for (const selector of authorSelectors) {
+      const author = element.querySelector(selector)?.textContent?.trim();
+      if (author) return author.substring(0, 50);
+    }
+    return 'Unknown';
+  }
+
+  extractPostTimestamp(element) {
+    const timeSelectors = ['time, .timestamp, .date, [data-testid*="time"]'];
+    for (const selector of timeSelectors) {
+      const time = element.querySelector(selector);
+      if (time) {
+        return time.getAttribute('datetime') || time.textContent?.trim() || null;
+      }
+    }
+    return null;
+  }
+
+  extractPostMetrics(element) {
+    const metrics = {};
+    const likeSelectors = ['[data-testid*="like"], .like-count, .heart-count'];
+    const replySelectors = ['[data-testid*="reply"], .reply-count, .comment-count'];
+    const shareSelectors = ['[data-testid*="retweet"], .share-count, .repost-count'];
+    
+    for (const selector of likeSelectors) {
+      const likes = element.querySelector(selector)?.textContent?.match(/\d+/)?.[0];
+      if (likes) metrics.likes = parseInt(likes);
+    }
+    
+    for (const selector of replySelectors) {
+      const replies = element.querySelector(selector)?.textContent?.match(/\d+/)?.[0];
+      if (replies) metrics.replies = parseInt(replies);
+    }
+    
+    for (const selector of shareSelectors) {
+      const shares = element.querySelector(selector)?.textContent?.match(/\d+/)?.[0];
+      if (shares) metrics.shares = parseInt(shares);
+    }
+    
+    return metrics;
+  }
+
+  hasPostMedia(element) {
+    return element.querySelector('img, video, [data-testid*="media"]') !== null;
+  }
+
+  detectPostType(element) {
+    if (element.querySelector('[data-testid*="retweet"]')) return 'repost';
+    if (element.querySelector('[data-testid*="reply"]')) return 'reply';
+    if (element.hasAttribute('data-promoted')) return 'promoted';
+    return 'original';
+  }
+
+  getTopDomains(domains, limit = 5) {
+    const domainCounts = {};
+    domains.forEach(domain => {
+      domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    });
+    
+    return Object.entries(domainCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, limit)
+      .map(([domain, count]) => ({ domain, count }));
+  }
+
+  calculateQualityScore(results) {
+    const avgScore = results.reduce((sum, r) => sum + (r.score || 0), 0) / results.length;
+    const hasLinks = results.filter(r => r.link).length / results.length;
+    const hasContent = results.filter(r => r.summary?.length > 50).length / results.length;
+    
+    return Math.round((avgScore * 0.4 + hasLinks * 0.3 + hasContent * 0.3) * 100);
+  }
+
+  getExtractionMethod(content_type) {
+    const hostname = window.location.hostname;
+    if (hostname.includes('twitter') || hostname.includes('x.com')) return 'twitter_patterns';
+    if (hostname.includes('github')) return 'github_patterns';
+    if (hostname.includes('google')) return 'google_patterns';
+    return `semantic_${content_type}`;
+  }
+
+  estimateContentTokens(content) {
+    if (Array.isArray(content)) {
+      return content.reduce((sum, item) => {
+        return sum + Math.ceil(JSON.stringify(item).length / 4);
+      }, 0);
+    } else {
+      return Math.ceil(JSON.stringify(content).length / 4);
+    }
+  }
+
+  async clickElement({ element_id, click_type = 'left', wait_after = 500 }) {
+    const element = this.getElementById(element_id);
+    if (!element) {
+      throw new Error(`Element not found: ${element_id}`);
+    }
+    
+    // Scroll element into view
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Click the element
+    if (click_type === 'right') {
+      element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    } else {
+      element.click();
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, wait_after));
+    
+    return {
+      success: true,
+      element_id,
+      click_type,
+      element_name: this.getElementName(element)
+    };
+  }
+
+  async fillElement({ element_id, value, clear_first = true, force_focus = true }) {
+    const element = this.getElementById(element_id);
+    if (!element) {
+      throw new Error(`Element not found: ${element_id}`);
+    }
+    
+    // Enhanced focus sequence for modern web apps
+    if (force_focus) {
+      await this.ensureProperFocus(element);
+    } else {
+      element.focus();
+    }
+    
+    // Clear existing content if requested
+    if (clear_first) {
+      await this.clearElementContent(element);
+    }
+    
+    // Fill the value with proper event sequence
+    await this.fillWithEvents(element, value);
+    
+    // Validate the fill was successful
+    const actualValue = this.getElementValue(element);
+    const success = actualValue.includes(value);
+    
+    return {
+      success,
+      element_id,
+      value,
+      actual_value: actualValue,
+      element_name: this.getElementName(element),
+      focus_applied: force_focus
+    };
+  }
+
+  async ensureProperFocus(element) {
+    // Scroll element into view first
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Simulate proper mouse interaction sequence
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    // Fire mouse events in sequence
+    element.dispatchEvent(new MouseEvent('mousedown', { 
+      bubbles: true, 
+      clientX: centerX, 
+      clientY: centerY 
+    }));
+    
+    element.dispatchEvent(new MouseEvent('mouseup', { 
+      bubbles: true, 
+      clientX: centerX, 
+      clientY: centerY 
+    }));
+    
+    element.dispatchEvent(new MouseEvent('click', { 
+      bubbles: true, 
+      clientX: centerX, 
+      clientY: centerY 
+    }));
+    
+    // Focus and fire focus events
+    element.focus();
+    element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    element.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+    
+    // Wait for React/framework to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  async clearElementContent(element) {
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      element.value = '';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (element.contentEditable === 'true') {
+      // For contenteditable, simulate selecting all and deleting
+      element.focus();
+      document.execCommand('selectAll');
+      document.execCommand('delete');
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+
+  async fillWithEvents(element, value) {
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      // Set value and fire comprehensive events
+      element.value = value;
+      element.dispatchEvent(new Event('beforeinput', { bubbles: true }));
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Fire keyboard events to simulate typing completion
+      element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'End' }));
+      element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'End' }));
+      
+    } else if (element.contentEditable === 'true') {
+      // For contenteditable elements (like Twitter)
+      element.textContent = value;
+      element.dispatchEvent(new Event('beforeinput', { bubbles: true }));
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      // Trigger composition events for better compatibility
+      element.dispatchEvent(new CompositionEvent('compositionend', { 
+        bubbles: true, 
+        data: value 
+      }));
+      
+      // Fire selection change to notify frameworks
+      document.dispatchEvent(new Event('selectionchange'));
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  getElementValue(element) {
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      return element.value;
+    } else if (element.contentEditable === 'true') {
+      return element.textContent || element.innerText || '';
+    }
+    return '';
+  }
+
+  // Element state detection methods
+  getElementState(element) {
+    const state = {
+      disabled: this.isElementDisabled(element),
+      visible: this.isLikelyVisible(element),
+      clickable: this.isElementClickable(element),
+      focusable: this.isElementFocusable(element),
+      hasText: this.hasText(element),
+      isEmpty: this.isEmpty(element)
+    };
+    
+    // Overall interaction readiness
+    state.interaction_ready = state.visible && !state.disabled && (state.clickable || state.focusable);
+    
+    return state;
+  }
+
+  isElementDisabled(element) {
+    // Check disabled attribute
+    if (element.disabled === true) return true;
+    if (element.getAttribute('disabled') !== null) return true;
+    
+    // Check aria-disabled
+    if (element.getAttribute('aria-disabled') === 'true') return true;
+    
+    // Check common disabled classes
+    const disabledClasses = ['disabled', 'btn-disabled', 'button-disabled', 'inactive'];
+    const classList = Array.from(element.classList);
+    if (disabledClasses.some(cls => classList.includes(cls))) return true;
+    
+    // Check if parent form/fieldset is disabled
+    const parentFieldset = element.closest('fieldset[disabled]');
+    if (parentFieldset) return true;
+    
+    // Check computed styles for pointer-events: none
+    const computedStyle = getComputedStyle(element);
+    if (computedStyle.pointerEvents === 'none') return true;
+    
+    return false;
+  }
+
+  isElementClickable(element) {
+    const clickableTags = ['BUTTON', 'A', 'INPUT'];
+    const clickableTypes = ['button', 'submit', 'reset'];
+    const clickableRoles = ['button', 'link', 'menuitem', 'tab'];
+    
+    // Check tag and type
+    if (clickableTags.includes(element.tagName)) return true;
+    if (element.type && clickableTypes.includes(element.type)) return true;
+    
+    // Check role
+    const role = element.getAttribute('role');
+    if (role && clickableRoles.includes(role)) return true;
+    
+    // Check for click handlers
+    if (element.onclick || element.getAttribute('onclick')) return true;
+    
+    // Check for common clickable classes
+    const clickableClasses = ['btn', 'button', 'clickable', 'link'];
+    const classList = Array.from(element.classList);
+    if (clickableClasses.some(cls => classList.includes(cls))) return true;
+    
+    return false;
+  }
+
+  isElementFocusable(element) {
+    const focusableTags = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'];
+    
+    // Check if element is naturally focusable
+    if (focusableTags.includes(element.tagName)) return true;
+    
+    // Check tabindex
+    const tabindex = element.getAttribute('tabindex');
+    if (tabindex && tabindex !== '-1') return true;
+    
+    // Check contenteditable
+    if (element.contentEditable === 'true') return true;
+    
+    // Check role
+    const focusableRoles = ['textbox', 'searchbox', 'button', 'link'];
+    const role = element.getAttribute('role');
+    if (role && focusableRoles.includes(role)) return true;
+    
+    return false;
+  }
+
+  hasText(element) {
+    const text = element.textContent || element.value || element.getAttribute('aria-label') || '';
+    return text.trim().length > 0;
+  }
+
+  isEmpty(element) {
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      return !element.value || element.value.trim().length === 0;
+    }
+    if (element.contentEditable === 'true') {
+      return !element.textContent || element.textContent.trim().length === 0;
+    }
+    return false;
+  }
+
+  async waitForCondition({ condition_type, selector, text, timeout = 5000 }) {
+    const startTime = Date.now();
+    
+    const conditions = {
+      'element_visible': () => {
+        const el = document.querySelector(selector);
+        return el && el.offsetParent !== null;
+      },
+      'text_present': () => document.body.textContent.includes(text)
+    };
+    
+    const checkCondition = conditions[condition_type];
+    if (!checkCondition) {
+      throw new Error(`Unknown condition type: ${condition_type}`);
+    }
+    
+    while (Date.now() - startTime < timeout) {
+      if (checkCondition()) {
+        return {
+          condition_met: true,
+          wait_time: Date.now() - startTime
+        };
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    throw new Error(`Timeout waiting for condition: ${condition_type}`);
+  }
+
+  // Utility methods
+  registerElement(element) {
+    const id = `element_${++this.idCounter}`;
+    this.elementRegistry.set(id, element);
+    return id;
+  }
+
+  getElementById(id) {
+    // Check quick registry first (for q1, q2, etc.)
+    if (id.startsWith('q')) {
+      return this.quickRegistry.get(id);
+    }
+    // Then check main registry (for element_1, element_2, etc.)
+    return this.elementRegistry.get(id);
+  }
+
+  getElementName(element) {
+    return element.getAttribute('aria-label') ||
+           element.getAttribute('title') ||
+           element.textContent?.trim()?.substring(0, 50) ||
+           element.placeholder ||
+           element.tagName.toLowerCase();
+  }
+
+  isVisible(element) {
+    return element.offsetParent !== null &&
+           getComputedStyle(element).visibility !== 'hidden' &&
+           getComputedStyle(element).opacity !== '0';
+  }
+
+  generateSelector(element) {
+    if (element.id) return `#${element.id}`;
+    if (element.getAttribute('data-testid')) return `[data-testid="${element.getAttribute('data-testid')}"]`;
+    
+    let selector = element.tagName.toLowerCase();
+    if (element.className) {
+      selector += `.${element.className.split(' ').join('.')}`;
+    }
+    return selector;
+  }
+
+  inferElementType(element, intentHint) {
+    const tagName = element.tagName.toLowerCase();
+    const role = element.getAttribute('role');
+    const type = element.getAttribute('type');
+    
+    if (tagName === 'input' && type === 'search') return 'search_input';
+    if (tagName === 'input') return 'input';
+    if (tagName === 'textarea') return 'textarea';
+    if (tagName === 'button' || role === 'button') return 'button';
+    if (tagName === 'a') return 'link';
+    
+    return 'element';
+  }
+
+  calculateConfidence(element, intentHint) {
+    let confidence = 0.5;
+    
+    const text = this.getElementName(element).toLowerCase();
+    const hint = intentHint.toLowerCase();
+    
+    if (text.includes(hint)) confidence += 0.3;
+    if (element.getAttribute('data-testid')) confidence += 0.2;
+    if (element.getAttribute('aria-label')) confidence += 0.1;
+    
+    return Math.min(confidence, 1.0);
+  }
+
+  formatAnalysisResult(result, method, startTime) {
+    return {
+      ...result,
+      method,
+      execution_time: Math.round(performance.now() - startTime),
+      analyzed_at: new Date().toISOString()
+    };
+  }
+
+  // Two-phase utility methods
+  compressElement(element, isQuick = false) {
+    const actualElement = element.element || element;
+    const state = this.getElementState(actualElement);
+    
+    if (isQuick) {
+      // Quick phase - minimal data with state
+      const quickId = `q${++this.quickIdCounter}`;
+      this.quickRegistry.set(quickId, actualElement);
+      
+      return {
+        id: quickId,
+        type: element.type || 'element',
+        name: element.name?.substring(0, 20) || 'unnamed',
+        conf: Math.round((element.confidence || 0.5) * 100),
+        selector: element.selector || 'unknown',
+        state: state.disabled ? 'disabled' : 'enabled',
+        clickable: state.clickable,
+        ready: state.interaction_ready
+      };
+    } else {
+      // Detailed phase - compact fingerprint with full state
+      return {
+        id: element.id,
+        fp: this.generateFingerprint(actualElement),
+        name: element.name?.substring(0, 30) || 'unnamed',
+        conf: Math.round((element.confidence || 0.5) * 100),
+        meta: {
+          ...this.getElementMeta(actualElement),
+          state: state
+        }
+      };
+    }
+  }
+
+  generateFingerprint(element) {
+    const tag = element.tagName.toLowerCase();
+    const primaryClass = this.getPrimaryClass(element);
+    const context = this.getContext(element);
+    const position = this.getRelativePosition(element);
+    
+    return `${tag}${primaryClass ? '.' + primaryClass : ''}@${context}.${position}`;
+  }
+
+  getPrimaryClass(element) {
+    const importantClasses = ['btn', 'button', 'link', 'input', 'search', 'submit', 'primary', 'secondary'];
+    const classList = Array.from(element.classList);
+    return classList.find(cls => importantClasses.includes(cls)) || classList[0];
+  }
+
+  getContext(element) {
+    const parent = element.closest('nav, main, header, footer, form, section, article') || element.parentElement;
+    if (!parent) return 'body';
+    return parent.tagName.toLowerCase();
+  }
+
+  getRelativePosition(element) {
+    const siblings = Array.from(element.parentElement?.children || []);
+    const sameTypeElements = siblings.filter(el => el.tagName === element.tagName);
+    return sameTypeElements.indexOf(element) + 1;
+  }
+
+  getElementMeta(element) {
+    const rect = element.getBoundingClientRect();
+    return {
+      rect: [Math.round(rect.x), Math.round(rect.y), Math.round(rect.width), Math.round(rect.height)],
+      visible: this.isLikelyVisible(element),
+      form_context: element.closest('form') ? 'form' : null
+    };
+  }
+
+  detectPageType() {
+    const hostname = window.location.hostname;
+    const title = document.title.toLowerCase();
+    const hasSearch = document.querySelector('[type="search"], [role="searchbox"]');
+    const hasLogin = document.querySelector('[type="password"], [name*="login" i]');
+    const hasPost = document.querySelector('[contenteditable="true"], textarea[placeholder*="post" i]');
+    
+    if (hostname.includes('twitter') || hostname.includes('x.com')) return 'social_media';
+    if (hostname.includes('github')) return 'code_repository';
+    if (hostname.includes('google')) return 'search_engine';
+    if (hasPost) return 'content_creation';
+    if (hasLogin) return 'authentication';
+    if (hasSearch) return 'search_interface';
+    if (title.includes('shop') || title.includes('store')) return 'ecommerce';
+    
+    return 'general_website';
+  }
+
+  countViewportElements() {
+    const elements = document.querySelectorAll('button, input, select, textarea, a[href]');
+    const viewportElements = Array.from(elements).filter(el => this.isLikelyVisible(el));
+    
+    return {
+      buttons: viewportElements.filter(el => el.tagName === 'BUTTON' || el.getAttribute('role') === 'button').length,
+      inputs: viewportElements.filter(el => el.tagName === 'INPUT').length,
+      links: viewportElements.filter(el => el.tagName === 'A').length,
+      textareas: viewportElements.filter(el => el.tagName === 'TEXTAREA').length,
+      selects: viewportElements.filter(el => el.tagName === 'SELECT').length
+    };
+  }
+
+  async quickViewportScan(intent_hint, maxResults = 3) {
+    const candidates = document.querySelectorAll('button, input, a[href], [role="button"], textarea');
+    const visibleElements = Array.from(candidates)
+      .filter(el => this.isLikelyVisible(el))
+      .slice(0, 10); // Limit scan to first 10 visible elements
+    
+    const scoredElements = visibleElements.map(element => {
+      const confidence = this.calculateConfidence(element, intent_hint);
+      return {
+        element,
+        type: this.inferElementType(element, intent_hint),
+        name: this.getElementName(element),
+        confidence
+      };
+    });
+    
+    return scoredElements
+      .filter(el => el.confidence > 0.3)
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, maxResults)
+      .map(el => this.compressElement(el, true));
+  }
+
+  scoreIntentMatch(intent_hint, quickMatches) {
+    if (quickMatches.length === 0) return 'none';
+    const avgConfidence = quickMatches.reduce((sum, match) => sum + match.conf, 0) / quickMatches.length;
+    
+    if (avgConfidence >= 80) return 'high';
+    if (avgConfidence >= 60) return 'medium';
+    if (avgConfidence >= 40) return 'low';
+    return 'none';
+  }
+
+  suggestPhase2Areas(quickMatches, intent_hint) {
+    const suggestions = [];
+    const elementTypes = [...new Set(quickMatches.map(m => m.type))];
+    
+    if (elementTypes.includes('button')) suggestions.push('buttons');
+    if (elementTypes.includes('input') || elementTypes.includes('textarea')) suggestions.push('forms');
+    if (elementTypes.includes('link')) suggestions.push('navigation');
+    
+    // Intent-based suggestions
+    if (intent_hint.toLowerCase().includes('search') && !suggestions.includes('forms')) {
+      suggestions.push('search_elements');
+    }
+    
+    return suggestions.slice(0, 3);
+  }
+
+  estimatePhase2Tokens(quickMatches) {
+    // Estimate tokens needed for detailed analysis
+    const baseTokens = 50; // Base overhead
+    const tokensPerElement = 15; // Detailed element info
+    const contextTokens = 20; // Page context
+    
+    return baseTokens + (quickMatches.length * tokensPerElement) + contextTokens;
+  }
+
+  async expandQuickMatches(element_ids) {
+    const elements = [];
+    for (const id of element_ids) {
+      const element = this.quickRegistry.get(id);
+      if (element) {
+        const elementId = this.registerElement(element);
+        elements.push({
+          id: elementId,
+          type: this.inferElementType(element, ''),
+          name: this.getElementName(element),
+          confidence: 0.8, // Default confidence for expanded elements
+          element: element
+        });
+      }
+    }
+    return elements;
+  }
+
+  async analyzeFocusAreas(focus_areas, intent_hint) {
+    const elements = [];
+    const areaSelectors = {
+      'buttons': 'button, [role="button"], input[type="submit"]',
+      'forms': 'input, textarea, select, [contenteditable="true"]',
+      'navigation': 'nav a, .nav-item, [role="navigation"] a',
+      'search_elements': '[type="search"], [role="searchbox"], [placeholder*="search" i]'
+    };
+    
+    for (const area of focus_areas) {
+      const selector = areaSelectors[area];
+      if (selector) {
+        const areaElements = document.querySelectorAll(selector);
+        for (const element of Array.from(areaElements).slice(0, 5)) {
+          if (this.isLikelyVisible(element)) {
+            const elementId = this.registerElement(element);
+            elements.push({
+              id: elementId,
+              type: this.inferElementType(element, intent_hint),
+              name: this.getElementName(element),
+              confidence: this.calculateConfidence(element, intent_hint),
+              element: element
+            });
+          }
+        }
+      }
+    }
+    
+    return elements;
+  }
+
+  async fullEnhancedAnalysis(intent_hint, max_results) {
+    // Enhanced version of semantic analysis with better filtering
+    const relevantElements = document.querySelectorAll(`
+      button, input, select, textarea, a[href],
+      [role="button"], [role="textbox"], [role="searchbox"],
+      [aria-label], [data-testid], [contenteditable="true"]
+    `);
+    
+    const elements = Array.from(relevantElements)
+      .filter(el => this.isLikelyVisible(el))
+      .slice(0, 30) // Analyze more elements than before
+      .map(element => {
+        const elementId = this.registerElement(element);
+        return {
+          id: elementId,
+          type: this.inferElementType(element, intent_hint),
+          selector: this.generateSelector(element),
+          name: this.getElementName(element),
+          confidence: this.calculateConfidence(element, intent_hint),
+          element: element
+        };
+      })
+      .filter(el => el.confidence > 0.2) // Lower threshold for detailed analysis
+      .sort((a, b) => b.confidence - a.confidence);
+    
+    return elements.slice(0, max_results);
+  }
+
+  deduplicateElements(elements) {
+    const seen = new Set();
+    return elements.filter(element => {
+      const key = element.name + element.type;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  async enhanceElementMetadata(elements) {
+    return elements.map(element => ({
+      ...element,
+      meta: this.getElementMeta(element.element)
+    }));
+  }
+
+  isLikelyVisible(element) {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    
+    return rect.top < window.innerHeight && 
+           rect.bottom > 0 && 
+           rect.left < window.innerWidth && 
+           rect.right > 0 &&
+           style.visibility !== 'hidden' &&
+           style.opacity !== '0' &&
+           style.display !== 'none';
+  }
+
+  estimateTokenUsage(result) {
+    // Estimate token count based on result size
+    const jsonString = JSON.stringify(result);
+    return Math.ceil(jsonString.length / 4); // Rough estimate: 4 chars per token
+  }
+}
+
+// Initialize the automation system
+const browserAutomation = new BrowserAutomation();

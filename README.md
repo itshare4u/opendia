@@ -48,23 +48,58 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
    }
    ```
 
-## Available MCP Tools
+## Enhanced MCP Tools (8 Total)
 
-Once connected, the following tools will be available through MCP:
+### 🎯 Core Automation Tools (6 Tools)
 
-- **browser_navigate**: Navigate to a URL
-- **browser_get_tabs**: List all open tabs
-- **browser_create_tab**: Create a new tab
-- **browser_close_tab**: Close a specific tab
-- **browser_execute_script**: Run JavaScript in the active tab
-- **browser_get_page_content**: Extract text content from the page
-- **browser_take_screenshot**: Capture a screenshot
-- **browser_get_bookmarks**: Search bookmarks
-- **browser_add_bookmark**: Create a new bookmark
-- **browser_get_history**: Search browsing history
-- **browser_get_cookies**: Get cookies for a domain
-- **browser_fill_form**: Automatically fill form fields
-- **browser_click_element**: Click elements on the page
+- **page_analyze**: Intelligent page analysis using pattern database + semantic analysis
+  - Finds relevant elements based on user intent (e.g., "post_tweet", "search", "login")
+  - Returns confidence-scored elements with stable IDs
+  - Supports Twitter/X, GitHub, and universal patterns
+
+- **page_extract_content**: Structured content extraction
+  - Extract articles, search results, or social media posts
+  - Smart content detection using semantic analysis
+  - Returns structured data with metadata
+
+- **element_click**: Reliable element clicking
+  - Uses element IDs from page analysis
+  - Supports different click types (left, right, double)
+  - Auto-scrolls elements into view
+
+- **element_fill**: Smart form filling
+  - Fill input fields and textareas
+  - Supports contenteditable elements
+  - Option to clear existing content first
+
+- **page_navigate**: Enhanced navigation
+  - Navigate to URLs with optional wait conditions
+  - Wait for specific elements to appear after navigation
+  - Timeout handling and error reporting
+
+- **page_wait_for**: Conditional waiting
+  - Wait for elements to become visible
+  - Wait for specific text to appear on page
+  - Configurable timeout periods
+
+### 🔧 Essential Legacy Tools (2 Tools)
+
+- **browser_navigate**: Legacy navigation (compatibility)
+- **browser_execute_script**: CSP-aware JavaScript execution with fallbacks
+
+## 🚀 Key Features
+
+### Hybrid Intelligence Architecture
+- **99% Local Operations**: Pattern database eliminates most LLM calls ($0 cost vs $20+/month)
+- **Pattern Database**: Pre-built selectors for Twitter/X, GitHub, and common patterns
+- **Semantic Analysis**: Fallback using HTML semantics and ARIA labels
+- **Confidence Scoring**: Reliable element detection with quality metrics
+
+### Visual Testing Interface
+- **Real-time Testing**: Test content extraction and page analysis
+- **Element Highlighting**: Visual feedback with confidence-based colors
+- **Performance Metrics**: Execution time and data size monitoring
+- **JSON Viewer**: Full result inspection and debugging
 
 ## Project Structure
 

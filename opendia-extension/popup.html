@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>OpenDia Browser Bridge</title>
     <style>
       :root {
@@ -125,6 +126,167 @@
         background-color: var(--hover-color);
       }
 
+      .testing-section {
+        margin-top: 20px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+      }
+
+      .section-title {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: var(--text-color);
+        font-size: 0.9rem;
+      }
+
+      .test-form {
+        margin-bottom: 16px;
+      }
+
+      .form-group {
+        margin-bottom: 12px;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+
+      select, input[type="text"] {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: white;
+        color: var(--text-color);
+        box-sizing: border-box;
+      }
+
+      select:focus, input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .test-results {
+        margin-top: 16px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        max-height: 300px;
+        overflow-y: auto;
+        font-size: 0.75rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        display: none;
+      }
+      
+      .test-results-expanded {
+        max-height: 500px;
+      }
+
+      .test-results.show {
+        display: block;
+      }
+
+      .result-header {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-color);
+      }
+
+      .result-meta {
+        font-size: 0.7rem;
+        color: #6b7280;
+        margin-bottom: 8px;
+      }
+
+      .result-content {
+        white-space: pre-wrap;
+        font-size: 0.7rem;
+        background: white;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        margin: 8px 0;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+      
+      .expand-button {
+        background-color: #6b7280;
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        margin-top: 8px;
+        border-radius: 4px;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      
+      .expand-button:hover {
+        background-color: #4b5563;
+      }
+      
+      .json-viewer {
+        background: #1f2937;
+        color: #f3f4f6;
+        padding: 12px;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.65rem;
+        white-space: pre-wrap;
+        margin: 8px 0;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #374151;
+        line-height: 1.4;
+      }
+
+      .size-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.75rem;
+        margin-top: 8px;
+      }
+
+      .size-value {
+        font-weight: 600;
+      }
+
+      .size-value.large {
+        color: var(--error-color);
+      }
+
+      .size-value.normal {
+        color: var(--success-color);
+      }
+
+      .test-button {
+        background-color: #10b981;
+        margin-top: 8px;
+      }
+
+      .test-button:hover {
+        background-color: #059669;
+      }
+
+      .highlight-button {
+        background-color: #f59e0b;
+        font-size: 0.75rem;
+        padding: 6px 12px;
+        margin-left: 8px;
+      }
+
+      .highlight-button:hover {
+        background-color: #d97706;
+      }
+
       .log {
         background-color: #f8fafc;
         border: 1px solid var(--border-color);
@@ -170,13 +332,51 @@
       </div>
       <div class="info-row">
         <span class="info-label">Available Tools</span>
-        <span class="info-value" id="toolCount">0</span>
+        <span class="info-value" id="toolCount">8</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Current Page</span>
+        <span class="info-value" id="currentPage">Loading...</span>
       </div>
     </div>
 
     <div class="button-group">
       <button id="reconnectBtn">Reconnect</button>
       <button id="testBtn">Test Connection</button>
+    </div>
+
+    <div class="testing-section">
+      <div class="section-title">🔬 Testing Tools</div>
+      
+      <div class="test-form">
+        <div class="form-group">
+          <label class="form-label" for="content-type">Content Extraction</label>
+          <select id="content-type">
+            <option value="article">Article Content</option>
+            <option value="search_results">Search Results</option>
+            <option value="posts">Posts/Feed Items</option>
+          </select>
+        </div>
+        <button class="test-button" id="test-extract">Test Extract</button>
+      </div>
+      
+      <div class="test-form">
+        <div class="form-group">
+          <label class="form-label" for="intent-hint">Element Analysis</label>
+          <input type="text" id="intent-hint" placeholder="e.g., search, post_tweet, login">
+        </div>
+        <button class="test-button" id="test-analyze">Test Analyze</button>
+        <button class="highlight-button" id="highlight-elements">🎯 Highlight</button>
+      </div>
+      
+      <div class="test-results" id="results">
+        <div class="result-header">Test Results</div>
+        <div class="result-meta" id="result-meta"></div>
+        <div class="result-content" id="result-content"></div>
+        <div class="size-info" id="data-size"></div>
+        <button class="expand-button" id="expand-results">📄 View Full JSON</button>
+        <div class="json-viewer" id="json-viewer" style="display: none;"></div>
+      </div>
     </div>
 
     <div class="log" id="log">
