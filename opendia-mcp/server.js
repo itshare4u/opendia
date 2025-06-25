@@ -47,8 +47,12 @@ async function handleMCPRequest(request) {
         break;
 
       case "tools/list":
-        // Return tools even if extension not connected yet
-        if (availableTools.length > 0) {
+        // Debug logging
+        console.error(`Tools/list called. Extension connected: ${chromeExtensionSocket && chromeExtensionSocket.readyState === WebSocket.OPEN}, Available tools: ${availableTools.length}`);
+        
+        // Return tools from extension if available, otherwise fallback tools
+        if (chromeExtensionSocket && chromeExtensionSocket.readyState === WebSocket.OPEN && availableTools.length > 0) {
+          console.error(`Returning ${availableTools.length} tools from extension`);
           result = {
             tools: availableTools.map((tool) => ({
               name: tool.name,
@@ -57,12 +61,10 @@ async function handleMCPRequest(request) {
             })),
           };
         } else {
-          // Return static tools with note that extension is connecting
+          // Return basic fallback tools
+          console.error("Extension not connected, returning fallback tools");
           result = {
-            tools: getStaticTools().map(tool => ({
-              ...tool,
-              description: tool.description + " (Extension connecting...)"
-            }))
+            tools: getFallbackTools()
           };
         }
         break;
@@ -86,11 +88,15 @@ async function handleMCPRequest(request) {
               params.name,
               params.arguments || {}
             );
+            
+            // Format response based on tool type
+            const formattedResult = formatToolResult(params.name, toolResult);
+            
             result = {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(toolResult, null, 2),
+                  text: formattedResult,
                 },
               ],
               isError: false
@@ -136,12 +142,112 @@ async function handleMCPRequest(request) {
   }
 }
 
-// Static tool definitions for when extension isn't connected
-function getStaticTools() {
+// Remove static tools - they were causing duplicates
+// All tools now come from the extension only
+
+// Format tool results for better MCP response
+function formatToolResult(toolName, result) {
+  const metadata = {
+    tool: toolName,
+    execution_time: result.execution_time || 0,
+    timestamp: new Date().toISOString()
+  };
+  
+  switch (toolName) {
+    case 'page_analyze':
+      if (result.elements && result.elements.length > 0) {
+        const summary = `Found ${result.elements.length} relevant elements using ${result.method}:\n\n` +
+          result.elements.map(el => 
+            `• ${el.name} (${el.type}) - Confidence: ${Math.round(el.confidence * 100)}%\n  Selector: ${el.selector}\n  Element ID: ${el.id}`
+          ).join('\n\n');
+        return `${summary}\n\n${JSON.stringify(metadata, null, 2)}`;
+      } else {
+        return `No relevant elements found for intent: "${result.intent_hint || 'unknown'}"\n\n${JSON.stringify(metadata, null, 2)}`;
+      }
+      
+    case 'page_extract_content':
+      const contentSummary = `Extracted ${result.content_type} content using ${result.method}:\n\n`;
+      if (result.content) {
+        const preview = typeof result.content === 'string' 
+          ? result.content.substring(0, 500) + (result.content.length > 500 ? '...' : '')
+          : JSON.stringify(result.content, null, 2).substring(0, 500);
+        return `${contentSummary}${preview}\n\n${JSON.stringify(metadata, null, 2)}`;
+      } else {
+        return `${contentSummary}No content found\n\n${JSON.stringify(metadata, null, 2)}`;
+      }
+      
+    case 'element_click':
+      return `✅ Successfully clicked element: ${result.element_name || result.element_id}\n` +
+             `Click type: ${result.click_type || 'left'}\n\n${JSON.stringify(metadata, null, 2)}`;
+             
+    case 'element_fill':
+      return `✅ Successfully filled element: ${result.element_name || result.element_id}\n` +
+             `Value: "${result.value}"\n\n${JSON.stringify(metadata, null, 2)}`;
+             
+    case 'page_navigate':
+      return `✅ Successfully navigated to: ${result.url || 'unknown URL'}\n\n${JSON.stringify(metadata, null, 2)}`;
+      
+    case 'page_wait_for':
+      return `✅ Condition met: ${result.condition_type || 'unknown'}\n` +
+             `Wait time: ${result.wait_time || 0}ms\n\n${JSON.stringify(metadata, null, 2)}`;
+             
+    default:
+      // Legacy tools or unknown tools
+      return JSON.stringify(result, null, 2);
+  }
+}
+
+// Fallback tools when extension is not connected
+function getFallbackTools() {
   return [
     {
-      name: "browser_navigate",
-      description: "Navigate to a URL in the active tab",
+      name: "page_analyze",
+      description: "Analyze current page structure (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          intent_hint: { type: "string", description: "What user wants to do" }
+        },
+        required: ["intent_hint"]
+      }
+    },
+    {
+      name: "page_extract_content",
+      description: "Extract structured content (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          content_type: { type: "string", enum: ["article", "search_results", "posts"] }
+        },
+        required: ["content_type"]
+      }
+    },
+    {
+      name: "element_click",
+      description: "Click page elements (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          element_id: { type: "string", description: "Element ID from page_analyze" }
+        },
+        required: ["element_id"]
+      }
+    },
+    {
+      name: "element_fill",
+      description: "Fill input fields (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          element_id: { type: "string", description: "Element ID" },
+          value: { type: "string", description: "Text to input" }
+        },
+        required: ["element_id", "value"]
+      }
+    },
+    {
+      name: "page_navigate",
+      description: "Navigate to URLs (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -151,129 +257,36 @@ function getStaticTools() {
       }
     },
     {
-      name: "browser_get_tabs",
-      description: "Get all open browser tabs",
-      inputSchema: {
-        type: "object",
-        properties: {}
-      }
-    },
-    {
-      name: "browser_create_tab",
-      description: "Create a new browser tab",
+      name: "page_wait_for",
+      description: "Wait for elements (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
-          url: { type: "string", description: "URL for new tab" },
-          active: { type: "boolean", description: "Make tab active" }
-        }
-      }
-    },
-    {
-      name: "browser_close_tab",
-      description: "Close a tab by ID",
-      inputSchema: {
-        type: "object",
-        properties: {
-          tabId: { type: "integer", description: "Tab ID to close" }
+          condition_type: { type: "string", enum: ["element_visible", "text_present"] }
         },
-        required: ["tabId"]
+        required: ["condition_type"]
+      }
+    },
+    {
+      name: "browser_navigate",
+      description: "Navigate to URLs - legacy (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "URL to navigate to" }
+        },
+        required: ["url"]
       }
     },
     {
       name: "browser_execute_script",
-      description: "Execute JavaScript in active tab",
+      description: "Execute JavaScript (Extension required - limited by CSP)",
       inputSchema: {
         type: "object",
         properties: {
           code: { type: "string", description: "JavaScript code" }
         },
         required: ["code"]
-      }
-    },
-    {
-      name: "browser_get_page_content",
-      description: "Get page text content",
-      inputSchema: {
-        type: "object",
-        properties: {
-          selector: { type: "string", description: "CSS selector (optional)" }
-        }
-      }
-    },
-    {
-      name: "browser_take_screenshot",
-      description: "Take screenshot of active tab",
-      inputSchema: {
-        type: "object",
-        properties: {
-          format: { type: "string", enum: ["png", "jpeg"], description: "Image format" }
-        }
-      }
-    },
-    {
-      name: "browser_get_bookmarks",
-      description: "Get browser bookmarks",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Search query" }
-        }
-      }
-    },
-    {
-      name: "browser_add_bookmark",
-      description: "Add a bookmark",
-      inputSchema: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Bookmark title" },
-          url: { type: "string", description: "Bookmark URL" }
-        },
-        required: ["title", "url"]
-      }
-    },
-    {
-      name: "browser_get_history",
-      description: "Search browser history",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Search query" },
-          maxResults: { type: "integer", description: "Max results" }
-        }
-      }
-    },
-    {
-      name: "browser_get_cookies",
-      description: "Get cookies for domain",
-      inputSchema: {
-        type: "object",
-        properties: {
-          domain: { type: "string", description: "Domain name" }
-        }
-      }
-    },
-    {
-      name: "browser_fill_form",
-      description: "Fill form on current page",
-      inputSchema: {
-        type: "object",
-        properties: {
-          formData: { type: "object", description: "Form field data" }
-        },
-        required: ["formData"]
-      }
-    },
-    {
-      name: "browser_click_element",
-      description: "Click element on page",
-      inputSchema: {
-        type: "object",
-        properties: {
-          selector: { type: "string", description: "CSS selector" }
-        },
-        required: ["selector"]
       }
     }
   ];
@@ -344,7 +357,8 @@ wss.on("connection", (ws) => {
 
       if (message.type === "register") {
         availableTools = message.tools;
-        console.error(`Registered ${availableTools.length} browser tools`);
+        console.error(`✅ Registered ${availableTools.length} browser tools from extension`);
+        console.error(`Tools: ${availableTools.map(t => t.name).join(', ')}`);
       } else if (message.type === "ping") {
         // Respond to ping with pong
         ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
@@ -360,6 +374,7 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     console.error("Chrome Extension disconnected");
     chromeExtensionSocket = null;
+    availableTools = []; // Clear tools when extension disconnects
     clearInterval(pingInterval);
   });
 
