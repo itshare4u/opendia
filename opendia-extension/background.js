@@ -213,17 +213,6 @@ function getAvailableTools() {
         required: ["condition_type"]
       }
     },
-    {
-      name: "browser_navigate",
-      description: "Navigate to a URL in the active tab",
-      inputSchema: {
-        type: "object",
-        properties: {
-          url: { type: "string", description: "URL to navigate to" },
-        },
-        required: ["url"],
-      },
-    },
     
     // Tab Management Tools
     {
@@ -520,9 +509,6 @@ async function handleMCPRequest(message) {
         break;
       case "page_wait_for":
         result = await sendToContentScript('wait_for', params);
-        break;
-      case "browser_navigate":
-        result = await navigateToUrl(params.url);
         break;
         
       // Tab management tools

@@ -201,179 +201,6 @@ const PATTERN_DATABASE = {
   },
 };
 
-// Token usage tracking and performance optimization
-class TokenOptimizer {
-  constructor() {
-    this.metrics = JSON.parse(localStorage.getItem("opendia_metrics") || "[]");
-    this.successRates = JSON.parse(
-      localStorage.getItem("opendia_success_rates") || "{}"
-    );
-    this.recommendedMaxResults = 5;
-    this.lastCleanup = Date.now();
-  }
-
-  trackUsage(
-    operation,
-    tokenCount,
-    success,
-    pageType = "unknown",
-    method = "unknown"
-  ) {
-    const metric = {
-      operation,
-      tokens: tokenCount,
-      success,
-      pageType,
-      method,
-      timestamp: Date.now(),
-    };
-
-    this.metrics.push(metric);
-
-    // Keep only last 100 metrics to prevent storage bloat
-    if (this.metrics.length > 100) {
-      this.metrics = this.metrics.slice(-100);
-    }
-
-    // Auto-adjust limits based on success rates
-    this.adjustLimits();
-
-    // Periodic cleanup (once per hour)
-    if (Date.now() - this.lastCleanup > 3600000) {
-      this.cleanup();
-    }
-
-    // Persist to localStorage
-    localStorage.setItem("opendia_metrics", JSON.stringify(this.metrics));
-  }
-
-  adjustLimits() {
-    const recent = this.metrics.slice(-20);
-    if (recent.length < 10) return;
-
-    const avgTokens =
-      recent.reduce((sum, m) => sum + m.tokens, 0) / recent.length;
-    const successRate = recent.filter((m) => m.success).length / recent.length;
-
-    // If using too many tokens but success rate is high, reduce max results
-    if (avgTokens > 200 && successRate > 0.8) {
-      this.recommendedMaxResults = Math.max(3, this.recommendedMaxResults - 1);
-    }
-    // If success rate is low, increase max results to get better matches
-    else if (successRate < 0.6) {
-      this.recommendedMaxResults = Math.min(10, this.recommendedMaxResults + 1);
-    }
-  }
-
-  cleanup() {
-    // Remove metrics older than 7 days
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    this.metrics = this.metrics.filter((m) => m.timestamp > cutoff);
-
-    // Clean up success rates for rarely used combinations
-    const recentPageTypes = new Set(this.metrics.map((m) => m.pageType));
-    Object.keys(this.successRates).forEach((key) => {
-      const [pageType] = key.split(":");
-      if (!recentPageTypes.has(pageType)) {
-        delete this.successRates[key];
-      }
-    });
-
-    localStorage.setItem("opendia_metrics", JSON.stringify(this.metrics));
-    localStorage.setItem(
-      "opendia_success_rates",
-      JSON.stringify(this.successRates)
-    );
-    this.lastCleanup = Date.now();
-  }
-
-  trackMethodSuccess(pageType, intent, method, success) {
-    const key = `${pageType}:${intent}:${method}`;
-    if (!this.successRates[key]) {
-      this.successRates[key] = { attempts: 0, successes: 0 };
-    }
-
-    this.successRates[key].attempts++;
-    if (success) {
-      this.successRates[key].successes++;
-    }
-
-    localStorage.setItem(
-      "opendia_success_rates",
-      JSON.stringify(this.successRates)
-    );
-  }
-
-  getBestMethod(pageType, intent) {
-    const methods = [
-      "anti_detection_bypass",
-      "enhanced_pattern_match",
-      "pattern_database",
-      "viewport_scan",
-      "semantic_analysis",
-    ];
-
-    return methods.sort((a, b) => {
-      const aKey = `${pageType}:${intent}:${a}`;
-      const bKey = `${pageType}:${intent}:${b}`;
-      const aRate = this.getSuccessRate(aKey);
-      const bRate = this.getSuccessRate(bKey);
-      return bRate - aRate;
-    })[0];
-  }
-
-  getSuccessRate(key) {
-    const data = this.successRates[key];
-    if (!data || data.attempts === 0) return 0;
-    return data.successes / data.attempts;
-  }
-
-  getRecommendedMaxResults() {
-    return this.recommendedMaxResults;
-  }
-
-  getAnalytics() {
-    const recent = this.metrics.slice(-50);
-    if (recent.length === 0) return { message: "No metrics available" };
-
-    const avgTokens =
-      recent.reduce((sum, m) => sum + m.tokens, 0) / recent.length;
-    const successRate = recent.filter((m) => m.success).length / recent.length;
-    const operationBreakdown = {};
-    const methodBreakdown = {};
-
-    recent.forEach((m) => {
-      operationBreakdown[m.operation] =
-        (operationBreakdown[m.operation] || 0) + 1;
-      methodBreakdown[m.method] = (methodBreakdown[m.method] || 0) + 1;
-    });
-
-    return {
-      totalOperations: recent.length,
-      avgTokensPerOperation: Math.round(avgTokens),
-      successRate: Math.round(successRate * 100),
-      recommendedMaxResults: this.recommendedMaxResults,
-      operationBreakdown,
-      methodBreakdown,
-      tokenSavings: this.calculateTokenSavings(recent),
-    };
-  }
-
-  calculateTokenSavings(metrics) {
-    // Estimate token savings vs naive approach
-    const actualTokens = metrics.reduce((sum, m) => sum + m.tokens, 0);
-    const estimatedNaiveTokens = metrics.length * 300; // Estimate for non-optimized approach
-    const savings = estimatedNaiveTokens - actualTokens;
-    const percentage = Math.round((savings / estimatedNaiveTokens) * 100);
-
-    return {
-      actualTokens,
-      estimatedNaiveTokens,
-      tokensSaved: savings,
-      percentageSaved: percentage,
-    };
-  }
-}
 
 class BrowserAutomation {
   constructor() {
@@ -381,7 +208,6 @@ class BrowserAutomation {
     this.quickRegistry = new Map(); // For phase 1 quick matches
     this.idCounter = 0;
     this.quickIdCounter = 0;
-    this.tokenOptimizer = new TokenOptimizer();
     this.setupMessageListener();
     this.setupViewportAnalyzer();
   }
@@ -438,22 +264,6 @@ class BrowserAutomation {
           break;
         case "wait_for":
           result = await this.waitForCondition(data);
-          break;
-        case "getPageInfo":
-          result = {
-            title: document.title,
-            url: window.location.href,
-            content: document.body.innerText,
-          };
-          break;
-        case "get_analytics":
-          result = this.tokenOptimizer.getAnalytics();
-          break;
-        case "clear_analytics":
-          localStorage.removeItem("opendia_metrics");
-          localStorage.removeItem("opendia_success_rates");
-          this.tokenOptimizer = new TokenOptimizer();
-          result = { message: "Analytics cleared successfully" };
           break;
         case "get_element_state":
           const element = this.getElementById(data.element_id);
@@ -811,13 +621,8 @@ class BrowserAutomation {
     const pageType = this.detectPageType();
     const viewportElements = this.countViewportElements();
 
-    // Use token optimizer recommendations
-    const recommendedMaxResults =
-      this.tokenOptimizer.getRecommendedMaxResults();
-    max_results = Math.min(max_results, recommendedMaxResults);
-
-    // Get best method based on historical performance
-    const bestMethod = this.tokenOptimizer.getBestMethod(pageType, intent_hint);
+    // Use default max results limit
+    max_results = Math.min(max_results, 5);
 
     // Try to find obvious matches using enhanced patterns
     let quickMatches = [];
@@ -893,22 +698,6 @@ class BrowserAutomation {
       elements: quickMatches, // Add this for backward compatibility
     };
 
-    // Track token usage and success
-    const tokenCount = this.estimateTokenUsage(result);
-    const success = quickMatches.length > 0 && intentMatch !== "none";
-    this.tokenOptimizer.trackUsage(
-      "page_analyze_discover",
-      tokenCount,
-      success,
-      pageType,
-      usedMethod
-    );
-    this.tokenOptimizer.trackMethodSuccess(
-      pageType,
-      intent_hint,
-      usedMethod,
-      success
-    );
 
     return result;
   }
@@ -968,10 +757,8 @@ class BrowserAutomation {
     const startTime = performance.now();
     const pageType = this.detectPageType();
 
-    // Use token optimizer recommendations
-    const recommendedMaxResults =
-      this.tokenOptimizer.getRecommendedMaxResults();
-    max_results = Math.min(max_results, recommendedMaxResults + 2); // Allow slightly more for detailed analysis
+    // Use default max results limit  
+    max_results = Math.min(max_results, 7); // Allow slightly more for detailed analysis
 
     let elements = [];
     let method = "detailed_analysis";
@@ -1016,22 +803,6 @@ class BrowserAutomation {
       intent_hint: intent_hint, // Add this for server.js compatibility
     };
 
-    // Track token usage and success
-    const tokenCount = this.estimateTokenUsage(result);
-    const success = elements.length > 0 && elements.some((el) => el.conf > 70);
-    this.tokenOptimizer.trackUsage(
-      "page_analyze_detailed",
-      tokenCount,
-      success,
-      pageType,
-      method
-    );
-    this.tokenOptimizer.trackMethodSuccess(
-      pageType,
-      intent_hint,
-      method,
-      success
-    );
 
     return result;
   }

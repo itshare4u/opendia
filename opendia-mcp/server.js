@@ -743,35 +743,6 @@ function getFallbackTools() {
         required: ["condition_type"],
       },
     },
-    {
-      name: "get_analytics",
-      description: "📊 Get performance analytics and token usage metrics",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
-    },
-    {
-      name: "clear_analytics",
-      description: "🗑️ Clear analytics data and reset performance tracking",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
-    },
-    {
-      name: "browser_navigate",
-      description: "🌐 Navigate to URLs - legacy (Extension required)",
-      inputSchema: {
-        type: "object",
-        properties: {
-          url: { type: "string", description: "URL to navigate to" },
-        },
-        required: ["url"],
-      },
-    },
     // Tab Management Tools
     {
       name: "tab_create",
@@ -865,18 +836,6 @@ function getFallbackTools() {
         },
         required: ["element_id"]
       }
-    },
-    {
-      name: "browser_execute_script",
-      description:
-        "⚡ Execute JavaScript (Extension required - limited by CSP)",
-      inputSchema: {
-        type: "object",
-        properties: {
-          code: { type: "string", description: "JavaScript code" },
-        },
-        required: ["code"],
-      },
     },
     // Workspace and Reference Management Tools
     {
