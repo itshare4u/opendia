@@ -260,11 +260,27 @@ function formatPageAnalyzeResult(result, metadata) {
 function formatContentExtractionResult(result, metadata) {
   const contentSummary = `Extracted ${result.content_type} content using ${result.method}:\n\n`;
   if (result.content) {
-    const preview =
-      typeof result.content === "string"
-        ? result.content.substring(0, 500) +
-          (result.content.length > 500 ? "..." : "")
-        : JSON.stringify(result.content, null, 2).substring(0, 500);
+    // Check if this is full content extraction (summarize=false) or summary
+    // If it's a content object with properties, show full content
+    // If it's a string or small content, it's probably summarized
+    let preview;
+    if (typeof result.content === "string") {
+      // String content - likely summarized, keep truncation
+      preview = result.content.substring(0, 500) + (result.content.length > 500 ? "..." : "");
+    } else if (result.content && typeof result.content === "object") {
+      // Object content - check if it's full content extraction
+      if (result.content.content && result.content.content.length > 1000) {
+        // This looks like full content extraction - don't truncate
+        preview = JSON.stringify(result.content, null, 2);
+      } else {
+        // Smaller content, apply truncation
+        preview = JSON.stringify(result.content, null, 2).substring(0, 500);
+      }
+    } else {
+      // Fallback
+      preview = JSON.stringify(result.content, null, 2).substring(0, 500);
+    }
+    
     return `${contentSummary}${preview}\n\n${JSON.stringify(
       metadata,
       null,

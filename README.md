@@ -48,43 +48,48 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
    }
    ```
 
-## Enhanced MCP Tools (11 Total)
+## Enhanced MCP Tools (17 Total)
 
-### 🎯 Core Automation Tools (7 Tools)
+### 🌐 Web Browser Automation Tools (8 Tools)
 
-- **page_analyze**: Intelligent page analysis using pattern database + semantic analysis
-  - Finds relevant elements based on user intent (e.g., "post_tweet", "search", "login")
-  - Returns confidence-scored elements with stable IDs
+- **page_analyze**: Two-phase intelligent page analysis with anti-detection bypass
+  - Phase 1 (discover): Quick scan with element state detection
+  - Phase 2 (detailed): Full analysis with element fingerprinting
+  - Enhanced pattern database with confidence scoring
   - Supports Twitter/X, GitHub, and universal patterns
 
-- **page_extract_content**: Structured content extraction
+- **page_extract_content**: Smart content extraction with summarization
   - Extract articles, search results, or social media posts
-  - Smart content detection using semantic analysis
-  - Returns structured data with metadata
+  - Token-efficient summaries with quality metrics
+  - Site-specific extraction patterns for Twitter/X, GitHub, Google
 
-- **element_click**: Reliable element clicking
+- **element_click**: Reliable element clicking with smart targeting
   - Uses element IDs from page analysis
   - Supports different click types (left, right, double)
   - Auto-scrolls elements into view
 
-- **element_fill**: Smart form filling with anti-detection bypass
-  - Fill input fields and textareas with specialized bypasses for Twitter/X, LinkedIn, Facebook
-  - Supports contenteditable elements
-  - Uses platform-specific techniques to avoid bot detection
+- **element_fill**: Enhanced form filling with anti-detection bypass
+  - Specialized bypasses for Twitter/X, LinkedIn, Facebook
+  - Natural focus sequence: click → focus → fill
+  - Comprehensive event simulation for modern web apps
 
-- **page_navigate**: Enhanced navigation
-  - Navigate to URLs with optional wait conditions
-  - Wait for specific elements to appear after navigation
+- **element_get_state**: Get detailed element state information
+  - Check if elements are disabled, clickable, visible
+  - Get current values and element properties
+  - Essential for conditional automation logic
+
+- **page_navigate**: Enhanced navigation with wait conditions
+  - Navigate to URLs with optional element wait conditions
   - Timeout handling and error reporting
 
-- **page_wait_for**: Conditional waiting
+- **page_wait_for**: Conditional waiting for elements or text
   - Wait for elements to become visible
   - Wait for specific text to appear on page
   - Configurable timeout periods
 
-- **browser_navigate**: URL navigation
-  - Navigate to URLs in the active tab
-  - Simple navigation tool for compatibility
+- **page_scroll**: Scroll pages in various directions
+  - Critical for long pages and infinite scroll content
+  - Supports smooth scrolling and element targeting
 
 ### 📑 Tab Management Tools (4 Tools)
 
@@ -109,12 +114,30 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
   - Focus windows automatically
   - Essential for multi-tab automation workflows
 
-### 🔧 State Management Tools (1 Tool)
+### 📊 Browser Data Access Tools (5 Tools)
 
-- **element_get_state**: Get detailed state information for elements
-  - Check if elements are disabled, clickable, visible
-  - Get current values and element properties
-  - Essential for conditional automation logic
+- **get_bookmarks**: Get all bookmarks or search for specific ones
+  - Search bookmarks by query string
+  - Returns structured bookmark data with hierarchy
+
+- **add_bookmark**: Add new bookmarks
+  - Create bookmarks with title and URL
+  - Optional parent folder support for organization
+
+- **get_history**: Search browser history with comprehensive filters
+  - Advanced filtering by date, domains, visit count, keywords
+  - Sophisticated sorting and metadata extraction
+  - Perfect for finding previous work and research
+
+- **get_selected_text**: Get currently selected text on the page
+  - Rich metadata about selection context and position
+  - Includes parent element information and page context
+  - Configurable length limits and truncation
+
+- **get_page_links**: Get all hyperlinks on current page with filtering
+  - Smart filtering for internal/external links
+  - Domain-specific filtering options
+  - Essential for link analysis and navigation planning
 
 ## 🚀 Key Features
 

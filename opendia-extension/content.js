@@ -1188,11 +1188,12 @@ class BrowserAutomation {
   }
 
   async extractContent({ content_type, max_items = 20, summarize = true }) {
+    console.log(`🔍 extractContent called with: content_type=${content_type}, max_items=${max_items}, summarize=${summarize}`);
     const startTime = performance.now();
     const extractors = {
-      article: () => this.extractArticleContent(),
-      search_results: () => this.extractSearchResults(max_items),
-      posts: () => this.extractPosts(max_items),
+      article: () => this.extractArticleContent(summarize),
+      search_results: () => this.extractSearchResults(max_items, summarize),
+      posts: () => this.extractPosts(max_items, summarize),
     };
 
     const extractor = extractors[content_type];
@@ -1218,6 +1219,7 @@ class BrowserAutomation {
       };
     } else {
       // Legacy full content extraction
+      console.log(`🎯 Returning FULL content: ${rawContent?.content?.length || 0} characters`);
       return {
         content: rawContent,
         method: "semantic_extraction",
@@ -1228,7 +1230,8 @@ class BrowserAutomation {
     }
   }
 
-  extractArticleContent() {
+  extractArticleContent(summarize = true) {
+    console.log(`📄 extractArticleContent called with summarize=${summarize}`);
     const article = document.querySelector(
       'article, [role="article"], .article-content, main'
     );
@@ -1236,6 +1239,9 @@ class BrowserAutomation {
       .querySelector("h1, .article-title, .post-title")
       ?.textContent?.trim();
     const content = article?.textContent?.trim() || this.extractMainContent();
+
+    console.log(`📏 Extracted content length: ${content?.length || 0} characters`);
+    console.log(`📝 Content preview: ${content?.substring(0, 200)}...`);
 
     return {
       title,
@@ -1265,7 +1271,7 @@ class BrowserAutomation {
     );
   }
 
-  extractSearchResults(max_items = 20) {
+  extractSearchResults(max_items = 20, summarize = true) {
     // Common search result patterns
     const selectors = [
       '.search-result, .result-item, [data-testid*="result"]',
@@ -1283,8 +1289,8 @@ class BrowserAutomation {
           .slice(0, max_items)
           .map((el, index) => ({
             index: index + 1,
-            title: this.extractResultTitle(el),
-            summary: this.extractResultSummary(el),
+            title: this.extractResultTitle(el, summarize),
+            summary: this.extractResultSummary(el, summarize),
             link: this.extractResultLink(el),
             type: this.detectResultType(el),
             score: this.scoreSearchResult(el),
@@ -1296,7 +1302,7 @@ class BrowserAutomation {
     return results;
   }
 
-  extractPosts(max_items = 20) {
+  extractPosts(max_items = 20, summarize = true) {
     // Social media post patterns
     const selectors = [
       '[data-testid="tweet"], .tweet, .post',
@@ -1313,7 +1319,7 @@ class BrowserAutomation {
           .slice(0, max_items)
           .map((el, index) => ({
             index: index + 1,
-            text: this.extractPostText(el),
+            text: this.extractPostText(el, summarize),
             author: this.extractPostAuthor(el),
             timestamp: this.extractPostTimestamp(el),
             metrics: this.extractPostMetrics(el),
@@ -1405,24 +1411,30 @@ class BrowserAutomation {
   }
 
   // Helper methods for extraction
-  extractResultTitle(element) {
+  extractResultTitle(element, summarize = true) {
     const titleSelectors = [
       'h1, h2, h3, .title, .headline, [data-testid*="title"]',
     ];
     for (const selector of titleSelectors) {
       const title = element.querySelector(selector)?.textContent?.trim();
-      if (title) return title.substring(0, 100);
+      if (title) {
+        return summarize ? title.substring(0, 100) : title;
+      }
     }
-    return element.textContent?.trim()?.substring(0, 50) || "No title";
+    const fallbackTitle = element.textContent?.trim() || "No title";
+    return summarize ? fallbackTitle.substring(0, 50) : fallbackTitle;
   }
 
-  extractResultSummary(element) {
+  extractResultSummary(element, summarize = true) {
     const summarySelectors = [".summary, .description, .snippet, .excerpt"];
     for (const selector of summarySelectors) {
       const summary = element.querySelector(selector)?.textContent?.trim();
-      if (summary) return summary.substring(0, 200);
+      if (summary) {
+        return summarize ? summary.substring(0, 200) : summary;
+      }
     }
-    return element.textContent?.trim()?.substring(0, 150) || "";
+    const fallbackSummary = element.textContent?.trim() || "";
+    return summarize ? fallbackSummary.substring(0, 150) : fallbackSummary;
   }
 
   extractResultLink(element) {
@@ -1453,7 +1465,7 @@ class BrowserAutomation {
     return Math.min(score, 1.0);
   }
 
-  extractPostText(element) {
+  extractPostText(element, summarize = true) {
     const textSelectors = [
       '[data-testid="tweetText"], .tweet-text',
       ".post-content, .entry-content",
@@ -1462,10 +1474,13 @@ class BrowserAutomation {
 
     for (const selector of textSelectors) {
       const text = element.querySelector(selector)?.textContent?.trim();
-      if (text) return text.substring(0, 280);
+      if (text) {
+        return summarize ? text.substring(0, 280) : text;
+      }
     }
 
-    return element.textContent?.trim()?.substring(0, 280) || "";
+    const fallbackText = element.textContent?.trim() || "";
+    return summarize ? fallbackText.substring(0, 280) : fallbackText;
   }
 
   extractPostAuthor(element) {
