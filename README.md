@@ -48,9 +48,9 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
    }
    ```
 
-## Enhanced MCP Tools (8 Total)
+## Enhanced MCP Tools (11 Total)
 
-### 🎯 Core Automation Tools (6 Tools)
+### 🎯 Core Automation Tools (7 Tools)
 
 - **page_analyze**: Intelligent page analysis using pattern database + semantic analysis
   - Finds relevant elements based on user intent (e.g., "post_tweet", "search", "login")
@@ -67,10 +67,10 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
   - Supports different click types (left, right, double)
   - Auto-scrolls elements into view
 
-- **element_fill**: Smart form filling
-  - Fill input fields and textareas
+- **element_fill**: Smart form filling with anti-detection bypass
+  - Fill input fields and textareas with specialized bypasses for Twitter/X, LinkedIn, Facebook
   - Supports contenteditable elements
-  - Option to clear existing content first
+  - Uses platform-specific techniques to avoid bot detection
 
 - **page_navigate**: Enhanced navigation
   - Navigate to URLs with optional wait conditions
@@ -82,10 +82,39 @@ OpenDia is an open alternative to Dia. Connect to your browser with MCP & do any
   - Wait for specific text to appear on page
   - Configurable timeout periods
 
-### 🔧 Essential Legacy Tools (2 Tools)
+- **browser_navigate**: URL navigation
+  - Navigate to URLs in the active tab
+  - Simple navigation tool for compatibility
 
-- **browser_navigate**: Legacy navigation (compatibility)
-- **browser_execute_script**: CSP-aware JavaScript execution with fallbacks
+### 📑 Tab Management Tools (4 Tools)
+
+- **tab_create**: Create new tabs with advanced options
+  - Create tabs with or without URLs
+  - Control tab activation and focus
+  - Wait for elements to load after creation
+  - Perfect for multi-tab workflows
+
+- **tab_close**: Close tabs with flexible targeting
+  - Close current tab, specific tab by ID, or multiple tabs
+  - Batch close operations for cleanup
+  - Safe handling of tab closure
+
+- **tab_list**: Get comprehensive tab information
+  - List all open tabs with details (title, URL, status)
+  - Filter by current window or all windows
+  - Track active tab and tab states
+
+- **tab_switch**: Switch between tabs intelligently
+  - Switch to specific tabs by ID
+  - Focus windows automatically
+  - Essential for multi-tab automation workflows
+
+### 🔧 State Management Tools (1 Tool)
+
+- **element_get_state**: Get detailed state information for elements
+  - Check if elements are disabled, clickable, visible
+  - Get current values and element properties
+  - Essential for conditional automation logic
 
 ## 🚀 Key Features
 

@@ -467,6 +467,12 @@ class BrowserAutomation {
             current_value: this.getElementValue(element),
           };
           break;
+        case "get_page_links":
+          result = await this.getPageLinks(data);
+          break;
+        case "page_scroll":
+          result = await this.scrollPage(data);
+          break;
         default:
           throw new Error(`Unknown action: ${action}`);
       }
@@ -2475,6 +2481,241 @@ class BrowserAutomation {
     // Estimate token count based on result size
     const jsonString = JSON.stringify(result);
     return Math.ceil(jsonString.length / 4); // Rough estimate: 4 chars per token
+  }
+  // Get all links on the page with filtering options
+  async getPageLinks(options = {}) {
+    const {
+      include_internal = true,
+      include_external = true,
+      domain_filter = null,
+      max_results = 100
+    } = options;
+
+    const links = Array.from(document.querySelectorAll('a[href]'));
+    const currentDomain = this.extractDomain(window.location.href);
+    const results = [];
+
+    for (const link of links) {
+      if (results.length >= max_results) break;
+
+      const href = link.href;
+      const linkDomain = this.extractDomain(href);
+      const isInternal = this.isSameDomain(currentDomain, linkDomain);
+
+      // Apply internal/external filter
+      if (!include_internal && isInternal) continue;
+      if (!include_external && !isInternal) continue;
+
+      // Apply domain filter
+      if (domain_filter && !linkDomain.includes(domain_filter)) continue;
+
+      const linkText = link.textContent?.trim() || '';
+      const linkTitle = link.title || '';
+
+      results.push({
+        url: href,
+        text: linkText,
+        title: linkTitle,
+        type: isInternal ? 'internal' : 'external',
+        domain: linkDomain
+      });
+    }
+
+    return {
+      links: results,
+      total_found: links.length,
+      returned: results.length,
+      current_domain: currentDomain
+    };
+  }
+
+  // Check if two domains are the same (handles subdomains)
+  isSameDomain(domain1, domain2) {
+    if (!domain1 || !domain2) return false;
+    
+    // Remove www. prefix for comparison
+    const clean1 = domain1.replace(/^www\./, '');
+    const clean2 = domain2.replace(/^www\./, '');
+    
+    return clean1 === clean2;
+  }
+
+  // Extract domain from URL
+  extractDomain(url) {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return '';
+    }
+  }
+
+  // Scroll page with comprehensive options
+  async scrollPage(options = {}) {
+    const {
+      direction = 'down',
+      amount = 'medium',
+      pixels = null,
+      smooth = true,
+      element_id = null,
+      wait_after = 500
+    } = options;
+    
+    const startPosition = {
+      x: window.scrollX,
+      y: window.scrollY
+    };
+
+    try {
+      // If element_id is provided, scroll to that element
+      if (element_id) {
+        const element = this.getElementById(element_id);
+        if (!element) {
+          throw new Error(`Element not found: ${element_id}`);
+        }
+        
+        element.scrollIntoView({
+          behavior: smooth ? 'smooth' : 'instant',
+          block: 'center',
+          inline: 'center'
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, wait_after));
+        
+        return {
+          success: true,
+          previous_position: startPosition,
+          new_position: { x: window.scrollX, y: window.scrollY },
+          method: 'scroll_to_element',
+          element_id: element_id,
+          element_name: this.getElementName(element)
+        };
+      }
+
+      // Calculate scroll amount based on amount parameter
+      let scrollAmount;
+      if (amount === 'custom' && pixels) {
+        scrollAmount = pixels;
+      } else {
+        switch (amount) {
+          case 'small':
+            scrollAmount = Math.min(200, window.innerHeight * 0.25);
+            break;
+          case 'medium':
+            scrollAmount = Math.min(500, window.innerHeight * 0.5);
+            break;
+          case 'large':
+            scrollAmount = Math.min(800, window.innerHeight * 0.8);
+            break;
+          case 'page':
+            scrollAmount = window.innerHeight * 0.9; // Slightly less than full page for overlap
+            break;
+          default:
+            scrollAmount = Math.min(500, window.innerHeight * 0.5);
+        }
+      }
+
+      // Calculate scroll direction
+      let scrollX = 0;
+      let scrollY = 0;
+      
+      switch (direction) {
+        case 'up':
+          scrollY = -scrollAmount;
+          break;
+        case 'down':
+          scrollY = scrollAmount;
+          break;
+        case 'left':
+          scrollX = -scrollAmount;
+          break;
+        case 'right':
+          scrollX = scrollAmount;
+          break;
+        case 'top':
+          // Scroll to top of page
+          if (smooth) {
+            window.scrollTo({ top: 0, left: window.scrollX, behavior: 'smooth' });
+          } else {
+            window.scrollTo(window.scrollX, 0);
+          }
+          await new Promise(resolve => setTimeout(resolve, wait_after));
+          return {
+            success: true,
+            previous_position: startPosition,
+            new_position: { x: window.scrollX, y: window.scrollY },
+            direction: direction,
+            method: 'scroll_to_top'
+          };
+        case 'bottom':
+          // Scroll to bottom of page
+          const maxY = Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight
+          ) - window.innerHeight;
+          if (smooth) {
+            window.scrollTo({ top: maxY, left: window.scrollX, behavior: 'smooth' });
+          } else {
+            window.scrollTo(window.scrollX, maxY);
+          }
+          await new Promise(resolve => setTimeout(resolve, wait_after));
+          return {
+            success: true,
+            previous_position: startPosition,
+            new_position: { x: window.scrollX, y: window.scrollY },
+            direction: direction,
+            method: 'scroll_to_bottom'
+          };
+        default:
+          throw new Error(`Unknown scroll direction: ${direction}`);
+      }
+
+      // Perform the scroll
+      if (smooth) {
+        window.scrollBy({
+          left: scrollX,
+          top: scrollY,
+          behavior: 'smooth'
+        });
+      } else {
+        window.scrollBy(scrollX, scrollY);
+      }
+      
+      // Wait for scroll to complete
+      await new Promise(resolve => setTimeout(resolve, wait_after));
+      
+      const finalPosition = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      
+      const actualScrolled = {
+        x: finalPosition.x - startPosition.x,
+        y: finalPosition.y - startPosition.y
+      };
+
+      return {
+        success: true,
+        previous_position: startPosition,
+        new_position: finalPosition,
+        direction: direction,
+        amount: amount,
+        requested_pixels: scrollAmount,
+        actual_scrolled: actualScrolled,
+        total_distance: Math.sqrt(actualScrolled.x ** 2 + actualScrolled.y ** 2),
+        smooth: smooth,
+        wait_after: wait_after
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        previous_position: startPosition,
+        new_position: { x: window.scrollX, y: window.scrollY },
+        direction: direction,
+        amount: amount
+      };
+    }
   }
 }
 

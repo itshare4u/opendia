@@ -11,9 +11,20 @@ let dataSizeInfo = document.getElementById("data-size");
 let expandButton = document.getElementById("expand-results");
 let jsonViewer = document.getElementById("json-viewer");
 
-// Get initial tool count and page info
-const tools = 8; // 6 core automation + 2 essential legacy tools
-toolCount.textContent = tools;
+// Get dynamic tool count from background script
+function updateToolCount() {
+  if (chrome.runtime?.id) {
+    chrome.runtime.sendMessage({ action: "getToolCount" }, (response) => {
+      if (!chrome.runtime.lastError && response?.toolCount) {
+        toolCount.textContent = response.toolCount;
+        addLog(`Updated tool count: ${response.toolCount}`, "info");
+      } else {
+        // Fallback to calculating from background script
+        toolCount.textContent = "18"; // Expected total based on background script
+      }
+    });
+  }
+}
 
 // Check connection status and get page info
 function checkStatus() {
@@ -26,6 +37,9 @@ function checkStatus() {
         updateStatus(response?.connected || false);
       }
     });
+    
+    // Update tool count
+    updateToolCount();
     
     // Get current page info
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {

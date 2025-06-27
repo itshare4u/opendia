@@ -9,7 +9,9 @@
     "storage",
     "scripting",
     "webNavigation",
-    "notifications"
+    "notifications",
+    "bookmarks",
+    "history"
   ],
   "host_permissions": [
     "<all_urls>"
