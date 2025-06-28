@@ -1,4 +1,4 @@
-# OpenDia <img src="opendia-extension/icon-128.png" alt="OpenDia" width="16" height="16">
+# OpenDia <img src="opendia-extension/icon-128.png" alt="OpenDia" width="32" height="32">
 
 > **The open alternative to Dia**  
 > Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
