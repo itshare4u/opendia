@@ -18,8 +18,8 @@ The system uses a hybrid intelligence architecture:
 
 ### Core Components
 
-- `background.js:44-213` - Defines 8 MCP tools for page analysis, content extraction, and element interaction
-- `content.js:4-50` - Pattern database with confidence-scored selectors for known sites
+- `background.js:44-213` - Defines 17 MCP tools for page analysis, content extraction, element interaction, tab management, and data access
+- `content.js:4-95` - Enhanced pattern database with confidence-scored selectors for known sites
 - `server.js:14-143` - MCP protocol implementation with tool registration and WebSocket handling
 
 ## Development Commands
@@ -44,7 +44,7 @@ curl http://localhost:3001/health  # Check server and extension status
 
 ## MCP Tool Categories
 
-### Core Automation Tools (6 tools)
+### Web Browser Automation Tools (8 tools)
 - `page_analyze` - **Two-phase intelligent analysis** with element state detection
   - Phase 1 (`discover`): Quick scan with element state (enabled/disabled, clickable)
   - Phase 2 (`detailed`): Full analysis with element fingerprinting and interaction readiness
@@ -58,19 +58,23 @@ curl http://localhost:3001/health  # Check server and extension status
   - Natural focus sequence: click → focus → fill for modern web apps
   - Comprehensive event simulation (beforeinput, input, change, composition)
   - Validation of successful fill with actual value verification
+- `element_get_state` - Get detailed element state (disabled, clickable, focusable, empty)
 - `page_navigate` - Navigate with optional element wait conditions  
 - `page_wait_for` - Wait for elements or text to appear
+- `page_scroll` - Scroll pages in various directions
 
-### Element State Tools (1 tool)
-- `element_get_state` - Get detailed element state (disabled, clickable, focusable, empty)
+### Tab Management Tools (4 tools)
+- `tab_create` - Create new tabs with advanced options
+- `tab_close` - Close tabs with flexible targeting
+- `tab_list` - Get comprehensive tab information
+- `tab_switch` - Switch between tabs intelligently
 
-### Analytics Tools (2 tools)
-- `get_analytics` - Token usage analytics and performance metrics
-- `clear_analytics` - Reset performance tracking data
-
-### Legacy Tools (2 tools)
-- `browser_navigate` - Basic navigation (compatibility)
-- `browser_execute_script` - JavaScript execution with CSP fallbacks
+### Browser Data Access Tools (5 tools)  
+- `get_bookmarks` - Get all bookmarks or search for specific ones
+- `add_bookmark` - Add new bookmarks with folder support
+- `get_history` - Search browser history with comprehensive filters
+- `get_selected_text` - Get currently selected text with rich metadata
+- `get_page_links` - Get all hyperlinks with filtering options
 
 ## Key Implementation Details
 

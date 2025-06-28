@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>OpenDia Browser Bridge</title>
+    <title>OpenDia</title>
     <style>
       :root {
         --primary-color: #2563eb;
@@ -19,8 +19,27 @@
         padding: 20px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         color: var(--text-color);
-        background: var(--bg-color);
+        background: linear-gradient(135deg, #0081F7 0%, #FF75CA 50%, #FFAE87 100%);
         margin: 0;
+        min-height: 300px;
+        position: relative;
+      }
+      
+      body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(20px);
+        z-index: 0;
+      }
+      
+      body > * {
+        position: relative;
+        z-index: 1;
       }
 
       .header {
@@ -33,13 +52,31 @@
         width: 32px;
         height: 32px;
         margin-right: 12px;
-        background: var(--primary-color);
-        border-radius: 8px;
+        background: linear-gradient(135deg, #0081F7, #FF75CA);
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: bold;
+        box-shadow: 0 2px 8px rgba(0, 129, 247, 0.3);
+        overflow: hidden;
+        position: relative;
+      }
+      
+      .logo video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+        border-radius: 50%;
+      }
+      
+      .logo span {
+        position: relative;
+        z-index: 1;
       }
 
       h2 {
@@ -53,9 +90,11 @@
         align-items: center;
         margin-bottom: 20px;
         padding: 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       }
 
       .status-indicator {
@@ -77,11 +116,13 @@
       }
 
       .info {
-        background-color: #f8fafc;
+        background: rgba(255, 255, 255, 0.6);
         padding: 16px;
-        border-radius: 8px;
+        border-radius: 10px;
         margin-bottom: 16px;
-        border: 1px solid var(--border-color);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       }
 
       .info-row {
@@ -102,6 +143,51 @@
       .info-value {
         font-weight: 500;
       }
+      
+      .tooltip {
+        position: relative;
+        cursor: help;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+        text-decoration-color: #9ca3af;
+      }
+      
+      .tooltip-content {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        transform: translateY(-5px);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 0.65rem;
+        font-weight: normal;
+        white-space: pre-wrap;
+        width: 320px;
+        margin: 0 auto;
+        text-align: center;
+        line-height: 1.3;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s, visibility 0.2s;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        word-wrap: break-word;
+      }
+      
+      .info-row .tooltip .tooltip-content {
+        left: -350px;
+        margin: 0;
+      }
+      
+      .tooltip:hover .tooltip-content {
+        opacity: 1;
+        visibility: visible;
+      }
+      
 
       .button-group {
         display: flex;
@@ -110,219 +196,70 @@
       }
 
       button {
-        background-color: var(--primary-color);
-        color: white;
-        border: none;
+        background: rgba(255, 255, 255, 0.3);
+        color: #0081F7;
+        border: 1px solid rgba(0, 129, 247, 0.2);
         padding: 10px 16px;
         border-radius: 6px;
         cursor: pointer;
-        font-weight: 500;
+        font-weight: 600;
         font-size: 0.875rem;
-        transition: background-color 0.2s ease;
+        transition: all 0.3s ease;
         flex: 1;
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+      }
+      
+      button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 117, 202, 0.3), transparent);
+        transition: left 0.6s ease;
       }
 
       button:hover {
-        background-color: var(--hover-color);
-      }
-
-      .testing-section {
-        margin-top: 20px;
-        border-top: 1px solid var(--border-color);
-        padding-top: 20px;
-      }
-
-      .section-title {
-        font-weight: 600;
-        margin-bottom: 12px;
-        color: var(--text-color);
-        font-size: 0.9rem;
-      }
-
-      .test-form {
-        margin-bottom: 16px;
-      }
-
-      .form-group {
-        margin-bottom: 12px;
-      }
-
-      .form-label {
-        display: block;
-        font-size: 0.8rem;
-        color: #6b7280;
-        margin-bottom: 4px;
-        font-weight: 500;
-      }
-
-      select, input[type="text"] {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 0.875rem;
-        background: white;
-        color: var(--text-color);
-        box-sizing: border-box;
-      }
-
-      select:focus, input[type="text"]:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-      }
-
-      .test-results {
-        margin-top: 16px;
-        padding: 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-        max-height: 300px;
-        overflow-y: auto;
-        font-size: 0.75rem;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        display: none;
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.5);
+        border-color: rgba(255, 117, 202, 0.4);
+        box-shadow: 0 6px 20px rgba(255, 117, 202, 0.2);
       }
       
-      .test-results-expanded {
-        max-height: 500px;
-      }
-
-      .test-results.show {
-        display: block;
-      }
-
-      .result-header {
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: var(--text-color);
-      }
-
-      .result-meta {
-        font-size: 0.7rem;
-        color: #6b7280;
-        margin-bottom: 8px;
-      }
-
-      .result-content {
-        white-space: pre-wrap;
-        font-size: 0.7rem;
-        background: white;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid #e5e7eb;
-        margin: 8px 0;
-        max-height: 120px;
-        overflow-y: auto;
+      button:hover::before {
+        left: 100%;
       }
       
-      .expand-button {
-        background-color: #6b7280;
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        margin-top: 8px;
-        border-radius: 4px;
-        color: white;
-        border: none;
-        cursor: pointer;
-      }
-      
-      .expand-button:hover {
-        background-color: #4b5563;
-      }
-      
-      .json-viewer {
-        background: #1f2937;
-        color: #f3f4f6;
-        padding: 12px;
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        font-size: 0.65rem;
-        white-space: pre-wrap;
-        margin: 8px 0;
-        max-height: 250px;
-        overflow-y: auto;
-        border: 1px solid #374151;
-        line-height: 1.4;
-      }
-
-      .size-info {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.75rem;
-        margin-top: 8px;
-      }
-
-      .size-value {
-        font-weight: 600;
-      }
-
-      .size-value.large {
-        color: var(--error-color);
-      }
-
-      .size-value.normal {
-        color: var(--success-color);
-      }
-
-      .test-button {
-        background-color: #10b981;
-        margin-top: 8px;
-      }
-
-      .test-button:hover {
-        background-color: #059669;
-      }
-
-      .highlight-button {
-        background-color: #f59e0b;
-        font-size: 0.75rem;
-        padding: 6px 12px;
-        margin-left: 8px;
-      }
-
-      .highlight-button:hover {
-        background-color: #d97706;
-      }
-
-      .log {
-        background-color: #f8fafc;
-        border: 1px solid var(--border-color);
-        padding: 12px;
-        border-radius: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-        font-size: 0.75rem;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      }
-
-      .log-entry {
-        margin-bottom: 4px;
-        padding: 4px 0;
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .log-entry:last-child {
-        border-bottom: none;
-      }
-
-      .log-time {
-        color: #6b7280;
-        margin-right: 8px;
+      button:active {
+        transform: translateY(0);
       }
     </style>
   </head>
   <body>
     <div class="header">
-      <div class="logo">OD</div>
-      <h2>OpenDia Browser Bridge</h2>
+      <div class="logo">
+        <video autoplay loop muted playsinline>
+          <source src="logo.webm" type="video/webm">
+          <source src="logo.mp4" type="video/mp4">
+          <span>OD</span>
+        </video>
+      </div>
+      <h2>OpenDia</h2>
     </div>
 
     <div class="status">
       <div class="status-indicator" id="statusIndicator"></div>
-      <span id="statusText">Checking connection...</span>
+      <span id="statusText" class="tooltip">
+        Checking connection...
+        <span class="tooltip-content">
+          Make sure your MCP server is connected.
+          If it's the case, click on Reconnect.
+          If it still don't work, kill your 3000 port & try again.
+        </span>
+      </span>
     </div>
 
     <div class="info">
@@ -342,48 +279,6 @@
 
     <div class="button-group">
       <button id="reconnectBtn">Reconnect</button>
-      <button id="testBtn">Test Connection</button>
-    </div>
-
-    <div class="testing-section">
-      <div class="section-title">🔬 Testing Tools</div>
-      
-      <div class="test-form">
-        <div class="form-group">
-          <label class="form-label" for="content-type">Content Extraction</label>
-          <select id="content-type">
-            <option value="article">Article Content</option>
-            <option value="search_results">Search Results</option>
-            <option value="posts">Posts/Feed Items</option>
-          </select>
-        </div>
-        <button class="test-button" id="test-extract">Test Extract</button>
-      </div>
-      
-      <div class="test-form">
-        <div class="form-group">
-          <label class="form-label" for="intent-hint">Element Analysis</label>
-          <input type="text" id="intent-hint" placeholder="e.g., search, post_tweet, login">
-        </div>
-        <button class="test-button" id="test-analyze">Test Analyze</button>
-        <button class="highlight-button" id="highlight-elements">🎯 Highlight</button>
-      </div>
-      
-      <div class="test-results" id="results">
-        <div class="result-header">Test Results</div>
-        <div class="result-meta" id="result-meta"></div>
-        <div class="result-content" id="result-content"></div>
-        <div class="size-info" id="data-size"></div>
-        <button class="expand-button" id="expand-results">📄 View Full JSON</button>
-        <div class="json-viewer" id="json-viewer" style="display: none;"></div>
-      </div>
-    </div>
-
-    <div class="log" id="log">
-      <div class="log-entry">
-        <span class="log-time">[System]</span>
-        <span>Waiting for activity...</span>
-      </div>
     </div>
 
     <script src="popup.js"></script>
