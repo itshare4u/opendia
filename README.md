@@ -8,14 +8,7 @@
 
 ## 📺 See it in Action
 
-> **Note**: You can add images or videos here by placing them in your repository and linking them:
-> ```markdown
-> ![OpenDia Demo](./demo.gif)
-> ```
-> or embed a video:
-> ```markdown
-> [![OpenDia Demo Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
-> ```
+![OpenDia Demo](./preview.mp4)
 
 ## 🚀 What is OpenDia?
 
