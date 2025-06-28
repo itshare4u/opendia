@@ -1,66 +1,96 @@
 # OpenDia ✳️
 
 > **The open alternative to Dia**  
-> Connect your browser to AI models through MCP. No browser switching needed—works seamlessly with Chrome and Arc.
+> Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
 
 [![npm version](https://badge.fury.io/js/opendia.svg)](https://badge.fury.io/js/opendia)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## 📺 See it in Action
+
+> **Note**: You can add images or videos here by placing them in your repository and linking them:
+> ```markdown
+> ![OpenDia Demo](./demo.gif)
+> ```
+> or embed a video:
+> ```markdown
+> [![OpenDia Demo Video](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+> ```
+
 ## 🚀 What is OpenDia?
 
-OpenDia bridges your browser and AI models through the Model Context Protocol (MCP). It exposes 17 powerful browser automation tools that let AI models interact with web pages, manage tabs, extract content, and automate workflows—all with anti-detection capabilities for major platforms.
+OpenDia lets AI models control your browser automatically. **The key advantage? It leverages everything you already have**—your logged-in accounts, saved passwords, cookies, wallets, and browsing history. No need to start from scratch or switch contexts.
+
+**🔑 Use Your Existing Digital Life:**
+- ✅ **Logged-in accounts**: Post to Twitter, LinkedIn, Facebook with your existing sessions
+- ✅ **Browser data**: Access your bookmarks, history, and saved passwords
+- ✅ **Extensions & wallets**: Use MetaMask, password managers, or any installed extensions
+- ✅ **Cookies & sessions**: Stay authenticated across all your favorite sites
+- ✅ **Local testing**: Perfect for development with Cursor - test with real user sessions
 
 **✨ Key Benefits:**
-- 🔄 **Universal AI Support**: Works with Sonnet, o3 and even local models
+- 🔄 **Universal AI Support**: Works with Claude, ChatGPT, Cursor, and local models
 - 🎯 **Anti-Detection**: Specialized bypasses for Twitter/X, LinkedIn, Facebook
-- 📱 **Smart Automation**: Two-phase intelligent page analysis
-- 🛡️ **Privacy-First**: Runs locally, your data stays with you
-- ⚡ **Zero Setup**: Get started with `npx opendia`
+- 📱 **Smart Automation**: AI understands your pages and finds the right elements
+- 🛡️ **Privacy-First**: Everything runs locally, your data stays with you
+- ⚡ **Zero Setup**: Get started with one command
 
-## 🎬 Demo Workflows
+## 🌐 Browser Support
 
-**Real workflows you can run today:**
+Works with **any Chromium-based browser**:
+- ✅ **Google Chrome**
+- ✅ **Arc Browser** 
+- ✅ **Microsoft Edge**
+- ✅ **Brave Browser**
+- ✅ **Opera**
+- ✅ **Vivaldi**
+- ✅ **Any Chromium variant**
+
+Perfect for **Cursor users** who want to automate their local testing and development workflows!
+
+## 🎬 What You Can Do
+
+**Real workflows you can try today:**
 
 ### 📰 Content & Social Media
-- **Daily Reading Summary**: Summarize articles you've read today & auto-post to Twitter
-- **Smart Recommendations**: Get personalized content suggestions based on your browsing history
-- **Bookmark Analysis**: Browse & summarize all your X/Twitter bookmarks
-- **Article Research**: Ask questions about any webpage and get instant answers
+- **"Summarize all the articles I read today and post a Twitter thread about the key insights"**
+- **"Find interesting articles related to AI from my bookmarks and create a reading list"**
+- **"Read this article and post a thoughtful comment on the LinkedIn version"**
+- **"Check my recent Twitter bookmarks and summarize the main themes"**
 
-### 📧 Productivity 
-- **Email Intelligence**: Browse and analyze your latest emails
-- **Tab Management**: Organize and switch between research sessions
-- **History Mining**: Find that article you read last week with natural language queries
-- **Content Extraction**: Turn any webpage into structured data
+### 📧 Productivity & Research
+- **"Browse my latest emails and tell me what needs urgent attention"**
+- **"Find all the GitHub repos I visited this week and create a summary report"**
+- **"Extract the main points from this research paper and save them to my notes"**
+- **"Search my browsing history for that article about AI safety I read last month"**
 
-### 🤖 Advanced Automation
-- **Multi-tab Workflows**: Coordinate actions across multiple browser tabs
-- **Form Filling**: Auto-fill forms with anti-detection on social platforms
-- **Content Publishing**: Draft and publish social media posts with AI assistance
-- **Research Automation**: Gather information from multiple sources automatically
+### 🤖 Development & Testing (Perfect for Cursor!)
+- **"Test my web app's signup flow and take screenshots at each step"**
+- **"Fill out this form with test data and check if validation works"**
+- **"Navigate through my app and check if all the buttons work properly"**
+- **"Use my connected wallet to test this DeFi interface"**
+
+### 🔄 Advanced Automation
+- **"Open tabs for all my daily news sources and summarize the top stories"**
+- **"Draft replies to my unread messages based on the context"**
+- **"Monitor this webpage and notify me when the content changes"**
+- **"Automatically bookmark interesting articles I'm reading"**
 
 ## ⚡ Quick Start
 
-### Option 1: Instant Setup (Recommended)
+### 1. Start the Server
 ```bash
-# Start the MCP server (no installation required)
 npx opendia
 ```
 
-### Option 2: Global Installation
-```bash
-npm install -g opendia
-opendia
-```
-
-### Setup the Chrome Extension
+### 2. Install the Browser Extension
 1. Download from [releases](https://github.com/aaronjmars/opendia/releases)
-2. Go to `chrome://extensions/`
+2. Go to `chrome://extensions/` (or your browser's extension page)
 3. Enable "Developer mode"
 4. Click "Load unpacked" and select the extension folder
 
-### Connect to your AI client
-Add to your MCP configuration:
+### 3. Connect to Your AI
+**For Claude Desktop**, add to your configuration:
 ```json
 {
   "mcpServers": {
@@ -72,190 +102,114 @@ Add to your MCP configuration:
 }
 ```
 
-## 🛠️ Available Tools (17 Total)
+**For Cursor or other AI tools**, use the same configuration or follow their specific setup instructions.
 
-### 🌐 Page Analysis & Interaction
-| Tool | Description | Use Case |
-|------|-------------|----------|
-| `page_analyze` | Two-phase intelligent page analysis | Find elements to interact with |
-| `page_extract_content` | Smart content extraction with summarization | Get article text, search results, social posts |
-| `element_click` | Click elements with smart targeting | Press buttons, follow links |
-| `element_fill` | Fill forms with anti-detection bypass | Post tweets, fill login forms |
-| `element_get_state` | Check element properties and states | Verify if buttons are clickable |
-| `page_navigate` | Navigate to URLs with wait conditions | Go to specific pages |
-| `page_wait_for` | Wait for elements or conditions | Ensure page loads before actions |
-| `page_scroll` | Scroll pages in any direction | Navigate long pages, infinite scroll |
+## 🛠️ Capabilities
 
-### 📑 Tab Management
-| Tool | Description | Use Case |
-|------|-------------|----------|
-| `tab_create` | Create new tabs with options | Open multiple research tabs |
-| `tab_close` | Close specific or current tabs | Clean up workspace |
-| `tab_list` | Get all open tabs with details | See what's currently open |
-| `tab_switch` | Switch between tabs by ID | Navigate between research |
+OpenDia gives AI models **17 powerful browser tools**:
 
-### 📊 Browser Data Access
-| Tool | Description | Use Case |
-|------|-------------|----------|
-| `get_bookmarks` | Access and search bookmarks | Find saved resources |
-| `add_bookmark` | Create new bookmarks | Save important pages |
-| `get_history` | Search browser history with filters | Find previously visited content |
-| `get_selected_text` | Get currently selected text | Work with highlighted content |
-| `get_page_links` | Extract all links from current page | Analyze page structure, find resources |
+### 🎯 Smart Page Understanding
+- **Analyze any webpage** - AI automatically finds buttons, forms, and interactive elements
+- **Extract content intelligently** - Get clean text from articles, social posts, or search results
+- **Understand context** - AI knows what type of page it's looking at and how to interact with it
 
-## 🎯 Anti-Detection Features
+### 🖱️ Natural Interactions  
+- **Click anything** - Buttons, links, menus - AI finds and clicks the right elements
+- **Fill forms smartly** - Works even on complex sites like Twitter, LinkedIn, Facebook
+- **Navigate seamlessly** - Go to pages, scroll, wait for content to load
+- **Handle modern web apps** - Bypasses detection on social platforms
 
-OpenDia includes specialized bypasses for platforms that typically block automation:
+### 📑 Tab & Window Management
+- **Multi-tab workflows** - Open, close, switch between tabs automatically
+- **Organize your workspace** - Let AI manage your browser tabs efficiently
+- **Coordinate complex tasks** - Work across multiple sites simultaneously
 
-- **🐦 Twitter/X**: Direct DOM manipulation bypassing React detection
-- **💼 LinkedIn**: Enhanced focus sequences for professional posting
-- **📘 Facebook**: Event simulation for social interactions
-- **🌐 Universal**: Fallback methods for any website
+### 📊 Access Your Browser Data
+- **Bookmarks & History** - Find that article you read last week
+- **Current page content** - Get selected text, links, or full page content
+- **Real-time information** - Work with whatever's currently on your screen
 
-## 🏗️ Architecture
+### 🛡️ Anti-Detection Features
+- **Social media posting** - Bypass automation detection on Twitter/X, LinkedIn, Facebook
+- **Natural interactions** - Mimics human behavior to avoid triggering security measures
+- **Reliable automation** - Works consistently even on sites that block typical automation tools
+
+## 💬 Example Prompts to Try
+
+Once everything is set up, try asking your AI:
+
+**Content Creation:**
+> *"Read the article on this page and create a Twitter thread summarizing the main points"*
+
+**Research & Analysis:**
+> *"Look through my browser history from this week and find articles about machine learning. Summarize the key trends."*
+
+**Social Media Management:**
+> *"Check my Twitter bookmarks and organize them into categories. Create a summary of each category."*
+
+**Productivity:**
+> *"Open tabs for my usual morning reading sites and give me a briefing of today's top stories"*
+
+**Development Testing:**
+> *"Fill out this contact form with test data and check if the submission works properly"*
+
+**Personal Assistant:**
+> *"Find that GitHub repo I was looking at yesterday about React components and bookmark it for later"*
+
+## 🏗️ How It Works
 
 ```mermaid
 graph LR
-    A[AI Model] <--> B[MCP Protocol]
-    B <--> C[OpenDia Server]
-    C <--> D[Chrome Extension]
-    D <--> E[Web Pages]
+    A[AI Model] --> B[OpenDia Server]
+    B --> C[Browser Extension]
+    C --> D[Your Browser]
+    D --> E[Any Website]
 ```
 
-## 🔧 Configuration
-
-### Environment Variables
-```bash
-PORT=3000          # WebSocket server port
-HEALTH_PORT=3001   # Health check HTTP port
-NODE_ENV=development
-```
-
-### CLI Options
-```bash
-npx opendia --help                 # Show help
-npx opendia --port 3005           # Custom WebSocket port
-npx opendia --health-port 3002    # Custom health check port
-npx opendia --version             # Show version
-```
-
-## 🚦 System Requirements
-
-- **Node.js**: Version 14 or higher
-- **Browser**: Chrome or Arc (Chromium-based)
-- **AI Client**: Any MCP-compatible client (Claude Desktop, custom implementations)
-
-## 📖 Examples
-
-### Extract and Summarize Current Page
-```python
-# Using the MCP tools
-result = await call_tool("page_extract_content", {
-    "content_type": "article",
-    "summarize": True
-})
-print(f"Summary: {result['summary']['preview']}")
-```
-
-### Auto-post to Twitter
-```python
-# Analyze page for tweet composition
-elements = await call_tool("page_analyze", {
-    "intent_hint": "post_tweet",
-    "phase": "discover"
-})
-
-# Fill the tweet
-await call_tool("element_fill", {
-    "element_id": elements['elements'][0]['id'],
-    "value": "Just discovered something amazing! 🚀"
-})
-
-# Click tweet button
-await call_tool("element_click", {
-    "element_id": elements['elements'][1]['id']
-})
-```
-
-### Research Multiple Articles
-```python
-# Get browser history for today
-history = await call_tool("get_history", {
-    "keywords": "AI research",
-    "start_date": "2024-01-01T00:00:00Z",
-    "max_results": 10
-})
-
-# Visit each article and extract content
-for item in history['history_items']:
-    await call_tool("page_navigate", {"url": item['url']})
-    content = await call_tool("page_extract_content", {
-        "content_type": "article",
-        "summarize": True
-    })
-    print(f"Article: {content['summary']['title']}")
-```
+1. **You ask** your AI to do something browser-related
+2. **AI calls** OpenDia tools to understand and interact with pages
+3. **OpenDia controls** your browser through the extension
+4. **You get results** - AI can see what happened and respond intelligently
 
 ## 🔒 Security & Privacy
 
-**Important Security Notice**: This extension requires broad browser permissions and establishes localhost connections. Use responsibly:
+**Your data stays private**:
+- ✅ **Everything runs locally** - No cloud processing of your browsing data
+- ✅ **You control access** - Extension only works when you want it to
+- ✅ **Open source** - Full transparency of what the code does
+- ✅ **No tracking** - We don't collect or store any of your information
 
-- ✅ **Local-first**: All data processing happens on your machine
-- ✅ **No tracking**: We don't collect or transmit your browsing data
-- ✅ **Open source**: Full transparency of what the code does
-- ⚠️ **Developer tool**: Intended for technical users who understand the risks
-- ⚠️ **Localhost only**: WebSocket server binds to localhost by default
+**Important**: This tool requires broad browser permissions to function. Only use with AI models you trust, and in environments where you're comfortable with browser automation.
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
+Love to have your help making OpenDia better!
 
-### Adding New Tools
-1. Add tool definition in `background.js` → `getAvailableTools()`
-2. Implement handler in `handleMCPRequest()`
-3. Test with the extension
-4. Submit a PR
-
-### Development Setup
+### Quick Development Setup
 ```bash
-git clone https://github.com/yourusername/opendia.git
+git clone https://github.com/aaronjmars/opendia.git
 cd opendia
 
-# Start MCP server
+# Start the server
 cd opendia-mcp
 npm install
 npm start
 
-# Load extension in Chrome
-# Go to chrome://extensions/
-# Enable Developer mode
-# Load unpacked: ./opendia-extension
+# Load extension in your browser
+# Go to chrome://extensions/ → Developer mode → Load unpacked: ./opendia-extension
 ```
 
-### Roadmap
-- [ ] Firefox extension support
-- [ ] Additional social platform bypasses  
-- [ ] Visual element selector
-- [ ] Workflow recorder/playback
-- [ ] Enterprise authentication support
+### Ways to Contribute
+- 🐛 **Report bugs** via [GitHub Issues](https://github.com/aaronjmars/opendia/issues)
+- 💡 **Suggest features** in [Discussions](https://github.com/aaronjmars/opendia/discussions)
+- 🔧 **Add new browser capabilities** 
+- 📖 **Improve documentation**
+- 🧪 **Test with different AI models**
 
 ## 📝 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 🆘 Support
-
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/aaronjmars/opendia/wiki)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/aaronjmars/opendia/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/aaronjmars/opendia/discussions)
-
-## 🙏 Acknowledgments
-
-Built with:
-- [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
-- Chrome Extensions API
-- WebSocket for real-time communication
-
 ---
 
-**Made with ✨ by developers who believe AI should seamlessly integrate with your workflow.**
+**Ready to supercharge your browser with AI? Get started with `npx opendia`! 🚀**
