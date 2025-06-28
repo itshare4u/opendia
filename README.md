@@ -72,18 +72,13 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 
 ## ⚡ Quick Start
 
-### 1. Start the Server
-```bash
-npx opendia
-```
-
-### 2. Install the Browser Extension
+### 1. Install the Browser Extension
 1. Download from [releases](https://github.com/aaronjmars/opendia/releases)
 2. Go to `chrome://extensions/` (or your browser's extension page)
 3. Enable "Developer mode"
 4. Click "Load unpacked" and select the extension folder
 
-### 3. Connect to Your AI
+### 2. Connect to Your AI
 **For Claude Desktop**, add to your configuration:
 ```json
 {
