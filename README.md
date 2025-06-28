@@ -1,9 +1,10 @@
 # OpenDia <img src="opendia-extension/icon-128.png" alt="OpenDia" width="32" height="32">
 
-> **The open alternative to Dia**  
-> Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
+**The open alternative to Dia**  
+Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
 
-[![npm version](https://badge.fury.io/js/opendia.svg)](https://badge.fury.io/js/opendia)
+[![npm version](https://badge.fury.io/js/opendia.svg)](https://www.npmjs.com/package/opendia)
+[![GitHub release](https://img.shields.io/github/release/aaronjmars/opendia.svg)](https://github.com/aaronjmars/opendia/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 📺 See it in Action
@@ -15,7 +16,7 @@
 OpenDia lets AI models control your browser automatically. **The key advantage? It leverages everything you already have**—your logged-in accounts, saved passwords, cookies, wallets, and browsing history. No need to start from scratch or switch contexts.
 
 **🔑 Use Your Existing Digital Life:**
-- ✅ **Logged-in accounts**: Post to Twitter / X, LinkedIn, Facebook with your existing sessions
+- ✅ **Logged-in accounts**: Post to Twitter/X, LinkedIn, Facebook with your existing sessions
 - ✅ **Browser data**: Access your bookmarks, history, and saved passwords
 - ✅ **Extensions & wallets**: Use MetaMask, password managers, or any installed extensions
 - ✅ **Cookies & sessions**: Stay authenticated across all your favorite sites

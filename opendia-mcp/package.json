@@ -1,13 +1,47 @@
 {
-  "name": "opendia-server",
-  "version": "1.0.0",
-  "description": "MCP Server for OpenDia Browser Bridge",
+  "name": "opendia",
+  "version": "1.0.3",
+  "description": "🎯 OpenDia - The open alternative to Dia. Connect your browser to AI models with anti-detection bypass for Twitter/X, LinkedIn, Facebook",
   "main": "server.js",
+  "bin": {
+    "opendia": "./server.js"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "browser",
+    "automation",
+    "ai",
+    "claude",
+    "chrome",
+    "extension",
+    "twitter",
+    "linkedin",
+    "facebook",
+    "anti-detection"
+  ],
+  "author": "OpenDia Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaronjmars/opendia.git"
+  },
+  "homepage": "https://github.com/aaronjmars/opendia",
+  "bugs": {
+    "url": "https://github.com/aaronjmars/opendia/issues"
   },
   "dependencies": {
-    "ws": "^8.x.x",
-    "express": "^4.x.x"
-  }
+    "ws": "^8.18.0",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "server.js",
+    "README.md"
+  ]
 }
