@@ -8,21 +8,21 @@
 
 ## 📺 See it in Action
 
-![OpenDia Demo](./preview.mp4)
+![OpenDia Demo](./preview.gif)
 
 ## 🚀 What is OpenDia?
 
 OpenDia lets AI models control your browser automatically. **The key advantage? It leverages everything you already have**—your logged-in accounts, saved passwords, cookies, wallets, and browsing history. No need to start from scratch or switch contexts.
 
 **🔑 Use Your Existing Digital Life:**
-- ✅ **Logged-in accounts**: Post to Twitter, LinkedIn, Facebook with your existing sessions
+- ✅ **Logged-in accounts**: Post to Twitter / X, LinkedIn, Facebook with your existing sessions
 - ✅ **Browser data**: Access your bookmarks, history, and saved passwords
 - ✅ **Extensions & wallets**: Use MetaMask, password managers, or any installed extensions
 - ✅ **Cookies & sessions**: Stay authenticated across all your favorite sites
 - ✅ **Local testing**: Perfect for development with Cursor - test with real user sessions
 
 **✨ Key Benefits:**
-- 🔄 **Universal AI Support**: Works with Claude, ChatGPT, Cursor, and local models
+- 🔄 **Universal AI Support**: Works with Claude, ChatGPT, Cursor and even local models
 - 🎯 **Anti-Detection**: Specialized bypasses for Twitter/X, LinkedIn, Facebook
 - 📱 **Smart Automation**: AI understands your pages and finds the right elements
 - 🛡️ **Privacy-First**: Everything runs locally, your data stays with you
