@@ -194,7 +194,7 @@ npm start
 
 ### Ways to Contribute
 - 🐛 **Report bugs** via [GitHub Issues](https://github.com/aaronjmars/opendia/issues)
-- 💡 **Suggest features** in [Discussions](https://github.com/aaronjmars/opendia/discussions)
+- 💡 **Share it on social medias**
 - 🔧 **Add new browser capabilities** 
 - 📖 **Improve documentation**
 - 🧪 **Test with different AI models**
