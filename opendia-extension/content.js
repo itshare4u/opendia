@@ -2387,7 +2387,7 @@ class BrowserAutomation {
             scrollAmount = Math.min(200, window.innerHeight * 0.25);
             break;
           case 'medium':
-            scrollAmount = Math.min(500, window.innerHeight * 0.5);
+            scrollAmount = Math.min(2000, window.innerHeight * 2.0);
             break;
           case 'large':
             scrollAmount = Math.min(800, window.innerHeight * 0.8);
@@ -2396,7 +2396,7 @@ class BrowserAutomation {
             scrollAmount = window.innerHeight * 0.9; // Slightly less than full page for overlap
             break;
           default:
-            scrollAmount = Math.min(500, window.innerHeight * 0.5);
+            scrollAmount = Math.min(2000, window.innerHeight * 2.0);
         }
       }
 

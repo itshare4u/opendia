@@ -1,203 +1,261 @@
 # OpenDia ✳️
 
-OpenDia is an open alternative to Dia. Connect to your browser with MCP & do anything.
-> Exposes browser functions through the Model Context Protocol (MCP), allowing AI models to interact with browser capabilities.
+> **The open alternative to Dia**  
+> Connect your browser to AI models through MCP. No browser switching needed—works seamlessly with Chrome and Arc.
 
-## ⚠️ Security Warning
+[![npm version](https://badge.fury.io/js/opendia.svg)](https://badge.fury.io/js/opendia)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**IMPORTANT**: This extension is provided as-is with no security guarantees. By using this extension, you acknowledge and accept the following risks:
+## 🚀 What is OpenDia?
 
-- The extension requires broad browser permissions to function
-- It establishes WebSocket connections to localhost
-- It allows external applications to control browser functions
-- We cannot guarantee the security of data transmitted through the extension
-- Use at your own risk and only in trusted environments
+OpenDia bridges your browser and AI models through the Model Context Protocol (MCP). It exposes 17 powerful browser automation tools that let AI models interact with web pages, manage tabs, extract content, and automate workflows—all with anti-detection capabilities for major platforms.
 
-## Quick Start
+**✨ Key Benefits:**
+- 🔄 **Universal AI Support**: Works with Sonnet, o3 and even local models
+- 🎯 **Anti-Detection**: Specialized bypasses for Twitter/X, LinkedIn, Facebook
+- 📱 **Smart Automation**: Two-phase intelligent page analysis
+- 🛡️ **Privacy-First**: Runs locally, your data stays with you
+- ⚡ **Zero Setup**: Get started with `npx opendia`
 
-### Prerequisites
-- Node.js (v14 or higher)
-- Google Chrome browser
+## 🎬 Demo Workflows
 
-### Installation
+**Real workflows you can run today:**
 
-1. **Set up the MCP Server**
-   ```bash
-   cd opendia-mcp
-   npm install
-   npm start
-   ```
+### 📰 Content & Social Media
+- **Daily Reading Summary**: Summarize articles you've read today & auto-post to Twitter
+- **Smart Recommendations**: Get personalized content suggestions based on your browsing history
+- **Bookmark Analysis**: Browse & summarize all your X/Twitter bookmarks
+- **Article Research**: Ask questions about any webpage and get instant answers
 
-2. **Install the Chrome Extension**
-   - Open Chrome and go to `chrome://extensions/`
-   - Enable "Developer mode" in the top right
-   - Click "Load unpacked" and select the `opendia-extension` directory
-   - The extension icon will appear in your browser toolbar
+### 📧 Productivity 
+- **Email Intelligence**: Browse and analyze your latest emails
+- **Tab Management**: Organize and switch between research sessions
+- **History Mining**: Find that article you read last week with natural language queries
+- **Content Extraction**: Turn any webpage into structured data
 
-3. **Configure your MCP client**
-   Add the browser server to your MCP configuration:
-   ```json
-   {
-     "mcpServers": {
-       "opendia": {
-         "command": "node",
-         "args": ["/path/to/opendia/opendia-mcp/server.js"],
-         "env": {}
-       }
-     }
-   }
-   ```
+### 🤖 Advanced Automation
+- **Multi-tab Workflows**: Coordinate actions across multiple browser tabs
+- **Form Filling**: Auto-fill forms with anti-detection on social platforms
+- **Content Publishing**: Draft and publish social media posts with AI assistance
+- **Research Automation**: Gather information from multiple sources automatically
 
-## Enhanced MCP Tools (17 Total)
+## ⚡ Quick Start
 
-### 🌐 Web Browser Automation Tools (8 Tools)
-
-- **page_analyze**: Two-phase intelligent page analysis with anti-detection bypass
-  - Phase 1 (discover): Quick scan with element state detection
-  - Phase 2 (detailed): Full analysis with element fingerprinting
-  - Enhanced pattern database with confidence scoring
-  - Supports Twitter/X, GitHub, and universal patterns
-
-- **page_extract_content**: Smart content extraction with summarization
-  - Extract articles, search results, or social media posts
-  - Token-efficient summaries with quality metrics
-  - Site-specific extraction patterns for Twitter/X, GitHub, Google
-
-- **element_click**: Reliable element clicking with smart targeting
-  - Uses element IDs from page analysis
-  - Supports different click types (left, right, double)
-  - Auto-scrolls elements into view
-
-- **element_fill**: Enhanced form filling with anti-detection bypass
-  - Specialized bypasses for Twitter/X, LinkedIn, Facebook
-  - Natural focus sequence: click → focus → fill
-  - Comprehensive event simulation for modern web apps
-
-- **element_get_state**: Get detailed element state information
-  - Check if elements are disabled, clickable, visible
-  - Get current values and element properties
-  - Essential for conditional automation logic
-
-- **page_navigate**: Enhanced navigation with wait conditions
-  - Navigate to URLs with optional element wait conditions
-  - Timeout handling and error reporting
-
-- **page_wait_for**: Conditional waiting for elements or text
-  - Wait for elements to become visible
-  - Wait for specific text to appear on page
-  - Configurable timeout periods
-
-- **page_scroll**: Scroll pages in various directions
-  - Critical for long pages and infinite scroll content
-  - Supports smooth scrolling and element targeting
-
-### 📑 Tab Management Tools (4 Tools)
-
-- **tab_create**: Create new tabs with advanced options
-  - Create tabs with or without URLs
-  - Control tab activation and focus
-  - Wait for elements to load after creation
-  - Perfect for multi-tab workflows
-
-- **tab_close**: Close tabs with flexible targeting
-  - Close current tab, specific tab by ID, or multiple tabs
-  - Batch close operations for cleanup
-  - Safe handling of tab closure
-
-- **tab_list**: Get comprehensive tab information
-  - List all open tabs with details (title, URL, status)
-  - Filter by current window or all windows
-  - Track active tab and tab states
-
-- **tab_switch**: Switch between tabs intelligently
-  - Switch to specific tabs by ID
-  - Focus windows automatically
-  - Essential for multi-tab automation workflows
-
-### 📊 Browser Data Access Tools (5 Tools)
-
-- **get_bookmarks**: Get all bookmarks or search for specific ones
-  - Search bookmarks by query string
-  - Returns structured bookmark data with hierarchy
-
-- **add_bookmark**: Add new bookmarks
-  - Create bookmarks with title and URL
-  - Optional parent folder support for organization
-
-- **get_history**: Search browser history with comprehensive filters
-  - Advanced filtering by date, domains, visit count, keywords
-  - Sophisticated sorting and metadata extraction
-  - Perfect for finding previous work and research
-
-- **get_selected_text**: Get currently selected text on the page
-  - Rich metadata about selection context and position
-  - Includes parent element information and page context
-  - Configurable length limits and truncation
-
-- **get_page_links**: Get all hyperlinks on current page with filtering
-  - Smart filtering for internal/external links
-  - Domain-specific filtering options
-  - Essential for link analysis and navigation planning
-
-## 🚀 Key Features
-
-### Hybrid Intelligence Architecture
-- **99% Local Operations**: Pattern database eliminates most LLM calls ($0 cost vs $20+/month)
-- **Pattern Database**: Pre-built selectors for Twitter/X, GitHub, and common patterns
-- **Semantic Analysis**: Fallback using HTML semantics and ARIA labels
-- **Confidence Scoring**: Reliable element detection with quality metrics
-
-### Visual Testing Interface
-- **Real-time Testing**: Test content extraction and page analysis
-- **Element Highlighting**: Visual feedback with confidence-based colors
-- **Performance Metrics**: Execution time and data size monitoring
-- **JSON Viewer**: Full result inspection and debugging
-
-## Project Structure
-
-```
-opendia/
-├── opendia-extension/     # Chrome extension files
-│   ├── manifest.json     # Extension configuration
-│   ├── background.js     # Background service worker
-│   ├── content.js        # Content scripts
-│   ├── popup.html        # Extension popup UI
-│   └── popup.js          # Popup functionality
-├── opendia-mcp/          # MCP server implementation
-│   ├── package.json      # Server dependencies
-│   ├── server.js         # MCP server logic
-│   └── .env             # Environment configuration
-└── README.md
+### Option 1: Instant Setup (Recommended)
+```bash
+# Start the MCP server (no installation required)
+npx opendia
 ```
 
-## Contributing
+### Option 2: Global Installation
+```bash
+npm install -g opendia
+opendia
+```
 
-1. **Adding New Browser Functions**
-   - Add the tool definition in `getAvailableTools()` in background.js
-   - Implement the handler in `handleMCPRequest()`
-   - The tool will automatically be registered with the MCP server
+### Setup the Chrome Extension
+1. Download from [releases](https://github.com/aaronjmars/opendia/releases)
+2. Go to `chrome://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked" and select the extension folder
 
-2. **Development Workflow**
-   - Modify extension files in the `opendia-extension` directory
-   - Reload the extension in Chrome to see changes
-   - Test new functionality through the MCP interface
+### Connect to your AI client
+Add to your MCP configuration:
+```json
+{
+  "mcpServers": {
+    "opendia": {
+      "command": "npx",
+      "args": ["opendia"]
+    }
+  }
+}
+```
 
-3. **Security Considerations**
-   - Review and limit permissions based on needs
-   - The WebSocket server runs on localhost only by default
-   - Be cautious when executing scripts or accessing sensitive data
-   - Consider adding authentication between the extension and MCP server
+## 🛠️ Available Tools (17 Total)
 
-## Troubleshooting
+### 🌐 Page Analysis & Interaction
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `page_analyze` | Two-phase intelligent page analysis | Find elements to interact with |
+| `page_extract_content` | Smart content extraction with summarization | Get article text, search results, social posts |
+| `element_click` | Click elements with smart targeting | Press buttons, follow links |
+| `element_fill` | Fill forms with anti-detection bypass | Post tweets, fill login forms |
+| `element_get_state` | Check element properties and states | Verify if buttons are clickable |
+| `page_navigate` | Navigate to URLs with wait conditions | Go to specific pages |
+| `page_wait_for` | Wait for elements or conditions | Ensure page loads before actions |
+| `page_scroll` | Scroll pages in any direction | Navigate long pages, infinite scroll |
 
-- **Extension not connecting**: Check that the MCP server is running on port 3000
-- **Tools not available**: Verify the extension is loaded and check the popup for connection status
-- **Permission errors**: Ensure the extension has the necessary permissions in manifest.json
+### 📑 Tab Management
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `tab_create` | Create new tabs with options | Open multiple research tabs |
+| `tab_close` | Close specific or current tabs | Clean up workspace |
+| `tab_list` | Get all open tabs with details | See what's currently open |
+| `tab_switch` | Switch between tabs by ID | Navigate between research |
 
-## License
+### 📊 Browser Data Access
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `get_bookmarks` | Access and search bookmarks | Find saved resources |
+| `add_bookmark` | Create new bookmarks | Save important pages |
+| `get_history` | Search browser history with filters | Find previously visited content |
+| `get_selected_text` | Get currently selected text | Work with highlighted content |
+| `get_page_links` | Extract all links from current page | Analyze page structure, find resources |
 
-MIT License
+## 🎯 Anti-Detection Features
 
-## Disclaimer
+OpenDia includes specialized bypasses for platforms that typically block automation:
 
-This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages or other liability arising from the use of this software.
+- **🐦 Twitter/X**: Direct DOM manipulation bypassing React detection
+- **💼 LinkedIn**: Enhanced focus sequences for professional posting
+- **📘 Facebook**: Event simulation for social interactions
+- **🌐 Universal**: Fallback methods for any website
+
+## 🏗️ Architecture
+
+```mermaid
+graph LR
+    A[AI Model] <--> B[MCP Protocol]
+    B <--> C[OpenDia Server]
+    C <--> D[Chrome Extension]
+    D <--> E[Web Pages]
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+```bash
+PORT=3000          # WebSocket server port
+HEALTH_PORT=3001   # Health check HTTP port
+NODE_ENV=development
+```
+
+### CLI Options
+```bash
+npx opendia --help                 # Show help
+npx opendia --port 3005           # Custom WebSocket port
+npx opendia --health-port 3002    # Custom health check port
+npx opendia --version             # Show version
+```
+
+## 🚦 System Requirements
+
+- **Node.js**: Version 14 or higher
+- **Browser**: Chrome or Arc (Chromium-based)
+- **AI Client**: Any MCP-compatible client (Claude Desktop, custom implementations)
+
+## 📖 Examples
+
+### Extract and Summarize Current Page
+```python
+# Using the MCP tools
+result = await call_tool("page_extract_content", {
+    "content_type": "article",
+    "summarize": True
+})
+print(f"Summary: {result['summary']['preview']}")
+```
+
+### Auto-post to Twitter
+```python
+# Analyze page for tweet composition
+elements = await call_tool("page_analyze", {
+    "intent_hint": "post_tweet",
+    "phase": "discover"
+})
+
+# Fill the tweet
+await call_tool("element_fill", {
+    "element_id": elements['elements'][0]['id'],
+    "value": "Just discovered something amazing! 🚀"
+})
+
+# Click tweet button
+await call_tool("element_click", {
+    "element_id": elements['elements'][1]['id']
+})
+```
+
+### Research Multiple Articles
+```python
+# Get browser history for today
+history = await call_tool("get_history", {
+    "keywords": "AI research",
+    "start_date": "2024-01-01T00:00:00Z",
+    "max_results": 10
+})
+
+# Visit each article and extract content
+for item in history['history_items']:
+    await call_tool("page_navigate", {"url": item['url']})
+    content = await call_tool("page_extract_content", {
+        "content_type": "article",
+        "summarize": True
+    })
+    print(f"Article: {content['summary']['title']}")
+```
+
+## 🔒 Security & Privacy
+
+**Important Security Notice**: This extension requires broad browser permissions and establishes localhost connections. Use responsibly:
+
+- ✅ **Local-first**: All data processing happens on your machine
+- ✅ **No tracking**: We don't collect or transmit your browsing data
+- ✅ **Open source**: Full transparency of what the code does
+- ⚠️ **Developer tool**: Intended for technical users who understand the risks
+- ⚠️ **Localhost only**: WebSocket server binds to localhost by default
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+### Adding New Tools
+1. Add tool definition in `background.js` → `getAvailableTools()`
+2. Implement handler in `handleMCPRequest()`
+3. Test with the extension
+4. Submit a PR
+
+### Development Setup
+```bash
+git clone https://github.com/yourusername/opendia.git
+cd opendia
+
+# Start MCP server
+cd opendia-mcp
+npm install
+npm start
+
+# Load extension in Chrome
+# Go to chrome://extensions/
+# Enable Developer mode
+# Load unpacked: ./opendia-extension
+```
+
+### Roadmap
+- [ ] Firefox extension support
+- [ ] Additional social platform bypasses  
+- [ ] Visual element selector
+- [ ] Workflow recorder/playback
+- [ ] Enterprise authentication support
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## 🆘 Support
+
+- 📖 **Documentation**: [GitHub Wiki](https://github.com/aaronjmars/opendia/wiki)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/aaronjmars/opendia/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/aaronjmars/opendia/discussions)
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
+- Chrome Extensions API
+- WebSocket for real-time communication
+
+---
+
+**Made with ✨ by developers who believe AI should seamlessly integrate with your workflow.**
