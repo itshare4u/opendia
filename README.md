@@ -3,7 +3,7 @@
 **The open alternative to Dia**  
 Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
 
-[![npm version](https://badge.fury.io/js/opendia.svg)](https://www.npmjs.com/package/opendia)
+[![npm version](https://img.shields.io/npm/v/opendia)](https://www.npmjs.com/package/opendia)
 [![GitHub release](https://img.shields.io/github/release/aaronjmars/opendia.svg)](https://github.com/aaronjmars/opendia/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
