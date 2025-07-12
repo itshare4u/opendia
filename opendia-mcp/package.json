@@ -8,6 +8,9 @@
   },
   "scripts": {
     "start": "node server.js",
+    "tunnel": "node server.js --tunnel",
+    "sse-only": "node server.js --sse-only",
+    "tunnel-sse": "node server.js --tunnel --sse-only",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -34,8 +37,9 @@
     "url": "https://github.com/aaronjmars/opendia/issues"
   },
   "dependencies": {
-    "ws": "^8.18.0",
-    "express": "^4.19.2"
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
   },
   "engines": {
     "node": ">=16.0.0"

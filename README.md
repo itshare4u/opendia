@@ -93,6 +93,54 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 
 **For Cursor or other AI tools**, use the same configuration or follow their specific setup instructions.
 
+## Usage Modes
+
+### Local Mode (Default)
+```bash
+npx opendia
+```
+- Chrome extension: ws://localhost:3000
+- Claude Desktop: stdio (existing config)
+- Local SSE: http://localhost:3001/sse
+
+### Auto-Tunnel Mode
+```bash
+npx opendia --tunnel
+```
+- Automatically creates ngrok tunnel
+- Copy URL for ChatGPT/online AI services
+- Local functionality preserved
+
+**Note**: For auto-tunneling to work, you need ngrok installed:
+
+**macOS:**
+```bash
+brew install ngrok
+```
+
+**Windows:**
+```bash
+# Using Chocolatey
+choco install ngrok
+
+# Or download from https://ngrok.com/download
+```
+
+**Linux:**
+```bash
+# Ubuntu/Debian
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update && sudo apt install ngrok
+
+# Or download from https://ngrok.com/download
+```
+
+Then get your free authtoken from https://dashboard.ngrok.com/get-started/your-authtoken and run:
+```bash
+ngrok config add-authtoken YOUR_TOKEN_HERE
+```
+
 ## 🛠️ Capabilities
 
 OpenDia gives AI models **17 powerful browser tools**:

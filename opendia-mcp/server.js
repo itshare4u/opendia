@@ -3,6 +3,21 @@
 const WebSocket = require("ws");
 const express = require("express");
 
+// ADD: New imports for SSE transport
+const cors = require('cors');
+const { createServer } = require('http');
+const { spawn } = require('child_process');
+
+// ADD: Command line argument parsing
+const args = process.argv.slice(2);
+const enableTunnel = args.includes('--tunnel') || args.includes('--auto-tunnel');
+const sseOnly = args.includes('--sse-only');
+
+// ADD: Express app setup
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 // WebSocket server for Chrome Extension
 const wss = new WebSocket.Server({ port: 3000 });
 let chromeExtensionSocket = null;
@@ -1131,10 +1146,74 @@ wss.on("connection", (ws) => {
   });
 });
 
+// ADD: SSE/HTTP endpoints for online AI
+app.route('/sse')
+  .get((req, res) => {
+    // SSE stream for connection
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    });
+
+    res.write(`data: ${JSON.stringify({
+      type: 'connection',
+      status: 'connected',
+      server: 'OpenDia MCP Server',
+      version: '1.0.0'
+    })}\n\n`);
+
+    // Heartbeat to keep connection alive
+    const heartbeat = setInterval(() => {
+      res.write(`data: ${JSON.stringify({
+        type: 'heartbeat',
+        timestamp: Date.now()
+      })}\n\n`);
+    }, 30000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      console.error('SSE client disconnected');
+    });
+
+    console.error('SSE client connected');
+  })
+  .post(async (req, res) => {
+    // MCP requests from online AI
+    console.error('MCP request received via SSE:', req.body);
+    
+    try {
+      const result = await handleMCPRequest(req.body);
+      res.json({
+        jsonrpc: "2.0",
+        id: req.body.id,
+        result: result
+      });
+    } catch (error) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        id: req.body.id,
+        error: { code: -32603, message: error.message }
+      });
+    }
+  });
+
+// ADD: CORS preflight handler
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Cache-Control');
+  res.sendStatus(200);
+});
+
 // Read from stdin
 let inputBuffer = "";
-process.stdin.on("data", async (chunk) => {
-  inputBuffer += chunk.toString();
+if (!sseOnly) {
+  process.stdin.on("data", async (chunk) => {
+    inputBuffer += chunk.toString();
 
   // Process complete lines
   const lines = inputBuffer.split("\n");
@@ -1155,34 +1234,145 @@ process.stdin.on("data", async (chunk) => {
       }
     }
   }
-});
+  });
+}
 
-// Optional: HTTP endpoint for health checks
-const app = express();
-app.get("/health", (req, res) => {
+// ADD: Health check endpoint (update existing one)
+app.get('/health', (req, res) => {
   res.json({
-    status: "ok",
+    status: 'ok',
     chromeExtensionConnected: chromeExtensionSocket !== null,
     availableTools: availableTools.length,
+    transport: sseOnly ? 'sse-only' : 'hybrid',
+    tunnelEnabled: enableTunnel,
     features: [
-      "Anti-detection bypass for Twitter/X, LinkedIn, Facebook",
-      "Two-phase intelligent page analysis",
-      "Smart content extraction with summarization",
-      "Element state detection and interaction readiness",
-      "Performance analytics and token optimization",
-    ],
+      'Anti-detection bypass for Twitter/X, LinkedIn, Facebook',
+      'Two-phase intelligent page analysis',
+      'Smart content extraction with summarization',
+      'Element state detection and interaction readiness',
+      'Performance analytics and token optimization',
+      'SSE transport for online AI services'
+    ]
   });
 });
 
-app.listen(3001, () => {
-  console.error("🎯 Enhanced Browser MCP Server with Anti-Detection Features");
-  console.error(
-    "Health check endpoint available at http://localhost:3001/health"
-  );
+// START: Enhanced server startup with optional tunneling
+async function startServer() {
+  console.error("🚀 Enhanced Browser MCP Server with Anti-Detection Features");
+  
+  // Start HTTP server
+  const httpServer = app.listen(3001, () => {
+    console.error("🌐 HTTP/SSE server running on port 3001");
+    console.error("🔌 Waiting for Chrome Extension connection on ws://localhost:3000");
+    console.error("🎯 Features: Anti-detection bypass + intelligent automation");
+  });
+
+  // Auto-tunnel if requested
+  if (enableTunnel) {
+    try {
+      console.error('🔄 Starting automatic tunnel...');
+      
+      // Use the system ngrok binary directly
+      const ngrokProcess = spawn('ngrok', ['http', '3001', '--log', 'stdout'], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+      
+      let tunnelUrl = null;
+      
+      // Wait for tunnel URL
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ngrokProcess.kill();
+          reject(new Error('Tunnel startup timeout'));
+        }, 10000);
+        
+        ngrokProcess.stdout.on('data', (data) => {
+          const output = data.toString();
+          const match = output.match(/url=https:\/\/[^\s]+/);
+          if (match) {
+            tunnelUrl = match[0].replace('url=', '');
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        
+        ngrokProcess.stderr.on('data', (data) => {
+          const error = data.toString();
+          if (error.includes('error') || error.includes('failed')) {
+            clearTimeout(timeout);
+            ngrokProcess.kill();
+            reject(new Error(error.trim()));
+          }
+        });
+        
+        ngrokProcess.on('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+      
+      if (tunnelUrl) {
+        console.error('');
+        console.error('🎉 OPENDIA READY!');
+        console.error('📋 Copy this URL for online AI services:');
+        console.error(`🔗 ${tunnelUrl}/sse`);
+        console.error('');
+        console.error('💡 ChatGPT: Settings → Connectors → Custom Connector');
+        console.error('💡 Claude Web: Add as external MCP server (if supported)');
+        console.error('');
+        console.error('🏠 Local access still available:');
+        console.error('🔗 http://localhost:3001/sse');
+        console.error('');
+        
+        // Store ngrok process for cleanup
+        global.ngrokProcess = ngrokProcess;
+      } else {
+        throw new Error('Could not extract tunnel URL');
+      }
+      
+    } catch (error) {
+      console.error('❌ Tunnel failed:', error.message);
+      console.error('');
+      console.error('💡 MANUAL NGROK OPTION:');
+      console.error('  1. Run: ngrok http 3001');
+      console.error('  2. Use the ngrok URL + /sse');
+      console.error('');
+      console.error('💡 Or use local URL:');
+      console.error('  🔗 http://localhost:3001/sse');
+      console.error('');
+    }
+  } else {
+    console.error('');
+    console.error('🏠 LOCAL MODE:');
+    console.error('🔗 SSE endpoint: http://localhost:3001/sse');
+    console.error('💡 For online AI access, restart with --tunnel flag');
+    console.error('');
+  }
+
+  // Display transport info
+  if (sseOnly) {
+    console.error('📡 Transport: SSE-only (stdio disabled)');
+    console.error('💡 Configure Claude Desktop with: http://localhost:3001/sse');
+  } else {
+    console.error('📡 Transport: Hybrid (stdio + SSE)');
+    console.error('💡 Claude Desktop: Works with existing config');
+    console.error('💡 Online AI: Use SSE endpoint above');
+  }
+}
+
+// Cleanup on exit
+process.on('SIGINT', async () => {
+  console.error('🔄 Shutting down...');
+  if (enableTunnel && global.ngrokProcess) {
+    console.error('🔄 Closing tunnel...');
+    try {
+      global.ngrokProcess.kill('SIGTERM');
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  }
+  process.exit();
 });
 
-console.error("🚀 Enhanced Browser MCP Server started");
-console.error(
-  "🔌 Waiting for Chrome Extension connection on ws://localhost:3000"
-);
-console.error("🎯 Features: Anti-detection bypass + intelligent automation");
+// Start the server
+startServer();
