@@ -33,12 +33,11 @@ OpenDia lets AI models control your browser automatically. **The key advantage? 
 
 Works with **any Chromium-based browser**:
 - ✅ **Google Chrome**
-- ✅ **Arc Browser** 
+- ✅ **Arc** 
 - ✅ **Microsoft Edge**
-- ✅ **Brave Browser**
+- ✅ **Brave**
 - ✅ **Opera**
-- ✅ **Vivaldi**
-- ✅ **Any Chromium variant**
+- ✅ **Any Chromium based browser**
 
 Perfect for **Cursor users** who want to automate their local testing and development workflows!
 
@@ -99,9 +98,19 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 ```bash
 npx opendia
 ```
-- Chrome extension: ws://localhost:3000
+- Chrome extension: ws://localhost:5555 (auto-discovery enabled)
 - Claude Desktop: stdio (existing config)
-- Local SSE: http://localhost:3001/sse
+- Local SSE: http://localhost:5556/sse
+
+### Port Configuration
+```bash
+# Use custom ports
+npx opendia --port=6000              # Uses 6000 (WebSocket) + 6001 (HTTP)
+npx opendia --ws-port=5555 --http-port=5556  # Specify individually
+
+# Handle port conflicts  
+npx opendia --kill-existing          # Safely terminate existing OpenDia processes
+```
 
 ### Auto-Tunnel Mode
 ```bash
@@ -232,8 +241,9 @@ cd opendia-mcp
 npm install
 npm start
 
-# Load extension in your browser
+# Load extension in your browser  
 # Go to chrome://extensions/ → Developer mode → Load unpacked: ./opendia-extension
+# Extension will auto-connect to server on localhost:5555
 ```
 
 ### Ways to Contribute

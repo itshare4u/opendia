@@ -2,24 +2,141 @@
 
 const WebSocket = require("ws");
 const express = require("express");
+const net = require('net');
+const { exec } = require('child_process');
 
 // ADD: New imports for SSE transport
 const cors = require('cors');
 const { createServer } = require('http');
 const { spawn } = require('child_process');
 
-// ADD: Command line argument parsing
+// ADD: Enhanced command line argument parsing
 const args = process.argv.slice(2);
 const enableTunnel = args.includes('--tunnel') || args.includes('--auto-tunnel');
 const sseOnly = args.includes('--sse-only');
+const killExisting = args.includes('--kill-existing');
+
+// Parse port arguments
+const wsPortArg = args.find(arg => arg.startsWith('--ws-port='));
+const httpPortArg = args.find(arg => arg.startsWith('--http-port='));
+const portArg = args.find(arg => arg.startsWith('--port='));
+
+// Default ports (changed from 3000/3001 to 5555/5556)
+let WS_PORT = wsPortArg ? parseInt(wsPortArg.split('=')[1]) : (portArg ? parseInt(portArg.split('=')[1]) : 5555);
+let HTTP_PORT = httpPortArg ? parseInt(httpPortArg.split('=')[1]) : (portArg ? parseInt(portArg.split('=')[1]) + 1 : 5556);
+
+// Port conflict detection utilities
+async function checkPortInUse(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.listen(port, () => {
+      server.once('close', () => resolve(false));
+      server.close();
+    });
+    server.on('error', () => resolve(true));
+  });
+}
+
+async function checkIfOpenDiaProcess(port) {
+  return new Promise((resolve) => {
+    exec(`lsof -ti:${port}`, (error, stdout) => {
+      if (error || !stdout.trim()) {
+        resolve(false);
+        return;
+      }
+      
+      const pid = stdout.trim().split('\n')[0];
+      exec(`ps -p ${pid} -o command=`, (psError, psOutput) => {
+        resolve(!psError && (
+          psOutput.includes('opendia') || 
+          psOutput.includes('server.js') ||
+          psOutput.includes('node') && psOutput.includes('opendia')
+        ));
+      });
+    });
+  });
+}
+
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (await checkPortInUse(port)) {
+    port++;
+    if (port > startPort + 100) { // Safety limit
+      throw new Error(`Could not find available port after checking ${port - startPort} ports`);
+    }
+  }
+  return port;
+}
+
+async function killExistingOpenDia(port) {
+  return new Promise((resolve) => {
+    exec(`lsof -ti:${port}`, async (error, stdout) => {
+      if (error || !stdout.trim()) {
+        resolve(false);
+        return;
+      }
+      
+      const pids = stdout.trim().split('\n');
+      let killedAny = false;
+      
+      for (const pid of pids) {
+        const isOpenDia = await checkIfOpenDiaProcess(port);
+        if (isOpenDia) {
+          exec(`kill ${pid}`, (killError) => {
+            if (!killError) {
+              console.error(`🔧 Killed existing OpenDia process (PID: ${pid})`);
+              killedAny = true;
+            }
+          });
+        }
+      }
+      
+      // Wait a moment for processes to fully exit
+      setTimeout(() => resolve(killedAny), 1000);
+    });
+  });
+}
+
+async function handlePortConflict(port, portName) {
+  const isInUse = await checkPortInUse(port);
+  
+  if (!isInUse) {
+    return port; // Port is free, use it
+  }
+  
+  // Port is busy - give user options
+  console.error(`⚠️  ${portName} port ${port} is already in use`);
+  
+  // Check if it's likely another OpenDia instance
+  const isOpenDia = await checkIfOpenDiaProcess(port);
+  
+  if (isOpenDia) {
+    console.error(`🔍 Detected existing OpenDia instance on port ${port}`);
+    console.error(`💡 Options:`);
+    console.error(`   1. Kill existing: npx opendia --kill-existing`);
+    console.error(`   2. Use different port: npx opendia --${portName.toLowerCase()}-port=${port + 1}`);
+    console.error(`   3. Check running processes: lsof -i:${port}`);
+    console.error(``);
+    console.error(`⏹️  Exiting to avoid conflicts...`);
+    process.exit(1);
+  } else {
+    // Something else is using the port - auto-increment
+    const altPort = await findAvailablePort(port + 1);
+    console.error(`🔄 ${portName} port ${port} busy (non-OpenDia), using port ${altPort}`);
+    if (portName === 'WebSocket') {
+      console.error(`💡 Update Chrome extension to: ws://localhost:${altPort}`);
+    }
+    return altPort;
+  }
+}
 
 // ADD: Express app setup
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// WebSocket server for Chrome Extension
-const wss = new WebSocket.Server({ port: 3000 });
+// WebSocket server for Chrome Extension (will be initialized after port conflict resolution)
+let wss = null;
 let chromeExtensionSocket = null;
 let availableTools = [];
 
@@ -1092,59 +1209,61 @@ function handleToolResponse(message) {
   }
 }
 
-// Handle Chrome Extension connections
-wss.on("connection", (ws) => {
-  console.error("Chrome Extension connected");
-  chromeExtensionSocket = ws;
+// Setup WebSocket connection handlers
+function setupWebSocketHandlers() {
+  wss.on("connection", (ws) => {
+    console.error("Chrome Extension connected");
+    chromeExtensionSocket = ws;
 
-  // Set up ping/pong for keepalive
-  const pingInterval = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.ping();
-    }
-  }, 30000);
-
-  ws.on("message", (data) => {
-    try {
-      const message = JSON.parse(data);
-
-      if (message.type === "register") {
-        availableTools = message.tools;
-        console.error(
-          `✅ Registered ${availableTools.length} browser tools from extension`
-        );
-        console.error(
-          `🎯 Enhanced tools with anti-detection bypass: ${availableTools
-            .map((t) => t.name)
-            .join(", ")}`
-        );
-      } else if (message.type === "ping") {
-        // Respond to ping with pong
-        ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
-      } else if (message.id) {
-        // Handle tool response
-        handleToolResponse(message);
+    // Set up ping/pong for keepalive
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping();
       }
-    } catch (error) {
-      console.error("Error processing message:", error);
-    }
-  });
+    }, 30000);
 
-  ws.on("close", () => {
-    console.error("Chrome Extension disconnected");
-    chromeExtensionSocket = null;
-    availableTools = []; // Clear tools when extension disconnects
-    clearInterval(pingInterval);
-  });
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(data);
 
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error);
-  });
+        if (message.type === "register") {
+          availableTools = message.tools;
+          console.error(
+            `✅ Registered ${availableTools.length} browser tools from extension`
+          );
+          console.error(
+            `🎯 Enhanced tools with anti-detection bypass: ${availableTools
+              .map((t) => t.name)
+              .join(", ")}`
+          );
+        } else if (message.type === "ping") {
+          // Respond to ping with pong
+          ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
+        } else if (message.id) {
+          // Handle tool response
+          handleToolResponse(message);
+        }
+      } catch (error) {
+        console.error("Error processing message:", error);
+      }
+    });
 
-  ws.on("pong", () => {
-    // Extension is alive
+    ws.on("close", () => {
+      console.error("Chrome Extension disconnected");
+      chromeExtensionSocket = null;
+      availableTools = []; // Clear tools when extension disconnects
+      clearInterval(pingInterval);
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
+    });
+
+    ws.on("pong", () => {
+      // Extension is alive
+    });
   });
-});
+}
 
 // ADD: SSE/HTTP endpoints for online AI
 app.route('/sse')
@@ -1245,6 +1364,10 @@ app.get('/health', (req, res) => {
     availableTools: availableTools.length,
     transport: sseOnly ? 'sse-only' : 'hybrid',
     tunnelEnabled: enableTunnel,
+    ports: {
+      websocket: WS_PORT,
+      http: HTTP_PORT
+    },
     features: [
       'Anti-detection bypass for Twitter/X, LinkedIn, Facebook',
       'Two-phase intelligent page analysis',
@@ -1256,14 +1379,59 @@ app.get('/health', (req, res) => {
   });
 });
 
-// START: Enhanced server startup with optional tunneling
+// ADD: Port discovery endpoint for Chrome extension
+app.get('/ports', (req, res) => {
+  res.json({
+    websocket: WS_PORT,
+    http: HTTP_PORT,
+    websocketUrl: `ws://localhost:${WS_PORT}`,
+    httpUrl: `http://localhost:${HTTP_PORT}`,
+    sseUrl: `http://localhost:${HTTP_PORT}/sse`
+  });
+});
+
+// START: Enhanced server startup with port conflict resolution
 async function startServer() {
   console.error("🚀 Enhanced Browser MCP Server with Anti-Detection Features");
+  console.error(`📊 Default ports: WebSocket=${WS_PORT}, HTTP=${HTTP_PORT}`);
+  
+  // Handle --kill-existing flag
+  if (killExisting) {
+    console.error('🔧 Killing existing OpenDia processes...');
+    const wsKilled = await killExistingOpenDia(WS_PORT);
+    const httpKilled = await killExistingOpenDia(HTTP_PORT);
+    
+    if (wsKilled || httpKilled) {
+      console.error('✅ Existing processes terminated');
+      // Wait for ports to be fully released
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      console.error('ℹ️  No existing OpenDia processes found');
+    }
+  }
+  
+  // Resolve port conflicts
+  WS_PORT = await handlePortConflict(WS_PORT, 'WebSocket');
+  HTTP_PORT = await handlePortConflict(HTTP_PORT, 'HTTP');
+  
+  // Ensure HTTP port doesn't conflict with resolved WebSocket port
+  if (HTTP_PORT === WS_PORT) {
+    HTTP_PORT = await findAvailablePort(WS_PORT + 1);
+    console.error(`🔄 HTTP port adjusted to ${HTTP_PORT} to avoid WebSocket conflict`);
+  }
+  
+  // Initialize WebSocket server after port resolution
+  wss = new WebSocket.Server({ port: WS_PORT });
+  
+  // Set up WebSocket connection handling
+  setupWebSocketHandlers();
+  
+  console.error(`✅ Ports resolved: WebSocket=${WS_PORT}, HTTP=${HTTP_PORT}`);
   
   // Start HTTP server
-  const httpServer = app.listen(3001, () => {
-    console.error("🌐 HTTP/SSE server running on port 3001");
-    console.error("🔌 Waiting for Chrome Extension connection on ws://localhost:3000");
+  const httpServer = app.listen(HTTP_PORT, () => {
+    console.error(`🌐 HTTP/SSE server running on port ${HTTP_PORT}`);
+    console.error(`🔌 Chrome Extension connected on ws://localhost:${WS_PORT}`);
     console.error("🎯 Features: Anti-detection bypass + intelligent automation");
   });
 
@@ -1273,7 +1441,7 @@ async function startServer() {
       console.error('🔄 Starting automatic tunnel...');
       
       // Use the system ngrok binary directly
-      const ngrokProcess = spawn('ngrok', ['http', '3001', '--log', 'stdout'], {
+      const ngrokProcess = spawn('ngrok', ['http', HTTP_PORT, '--log', 'stdout'], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
       
@@ -1334,17 +1502,17 @@ async function startServer() {
       console.error('❌ Tunnel failed:', error.message);
       console.error('');
       console.error('💡 MANUAL NGROK OPTION:');
-      console.error('  1. Run: ngrok http 3001');
+      console.error(`  1. Run: ngrok http ${HTTP_PORT}`);
       console.error('  2. Use the ngrok URL + /sse');
       console.error('');
       console.error('💡 Or use local URL:');
-      console.error('  🔗 http://localhost:3001/sse');
+      console.error(`  🔗 http://localhost:${HTTP_PORT}/sse`);
       console.error('');
     }
   } else {
     console.error('');
     console.error('🏠 LOCAL MODE:');
-    console.error('🔗 SSE endpoint: http://localhost:3001/sse');
+    console.error(`🔗 SSE endpoint: http://localhost:${HTTP_PORT}/sse`);
     console.error('💡 For online AI access, restart with --tunnel flag');
     console.error('');
   }
@@ -1352,12 +1520,21 @@ async function startServer() {
   // Display transport info
   if (sseOnly) {
     console.error('📡 Transport: SSE-only (stdio disabled)');
-    console.error('💡 Configure Claude Desktop with: http://localhost:3001/sse');
+    console.error(`💡 Configure Claude Desktop with: http://localhost:${HTTP_PORT}/sse`);
   } else {
     console.error('📡 Transport: Hybrid (stdio + SSE)');
     console.error('💡 Claude Desktop: Works with existing config');
     console.error('💡 Online AI: Use SSE endpoint above');
   }
+  
+  // Display port configuration help
+  console.error('');
+  console.error('🔧 Port Configuration:');
+  console.error(`   Current: WebSocket=${WS_PORT}, HTTP=${HTTP_PORT}`);
+  console.error('   Custom: npx opendia --ws-port=6000 --http-port=6001');
+  console.error('   Or: npx opendia --port=6000 (uses 6000 and 6001)');
+  console.error('   Kill existing: npx opendia --kill-existing');
+  console.error('');
 }
 
 // Cleanup on exit

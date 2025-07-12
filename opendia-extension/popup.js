@@ -3,6 +3,7 @@ let statusIndicator = document.getElementById("statusIndicator");
 let statusText = document.getElementById("statusText");
 let toolCount = document.getElementById("toolCount");
 let currentPage = document.getElementById("currentPage");
+let serverUrl = document.getElementById("serverUrl");
 
 // Get dynamic tool count from background script
 function updateToolCount() {
@@ -59,16 +60,31 @@ function checkStatus() {
 checkStatus();
 setInterval(checkStatus, 2000);
 
+// Update server URL display
+function updateServerUrl() {
+  if (chrome.runtime?.id) {
+    chrome.runtime.sendMessage({ action: "getPorts" }, (response) => {
+      if (!chrome.runtime.lastError && response?.websocketUrl) {
+        serverUrl.textContent = response.websocketUrl;
+      }
+    });
+  }
+}
+
+// Update server URL periodically
+updateServerUrl();
+setInterval(updateServerUrl, 5000);
+
 // Update UI based on connection status
 function updateStatus(connected) {
   if (connected) {
     statusIndicator.className = "status-indicator connected";
     statusText.innerHTML = `Connected to MCP server
-      <span class="tooltip-content">Make sure your MCP server is connected. If it's the case, click on Reconnect. If it still don't work, kill your 3000 port & try again.</span>`;
+      <span class="tooltip-content">Connected successfully! Server auto-discovery is working. Default ports: WebSocket=5555, HTTP=5556</span>`;
   } else {
     statusIndicator.className = "status-indicator disconnected";
     statusText.innerHTML = `Disconnected from MCP server
-      <span class="tooltip-content">Make sure your MCP server is connected. If it's the case, click on Reconnect. If it still don't work, kill your 3000 port & try again.</span>`;
+      <span class="tooltip-content">Start server with: npx opendia. Auto-discovery will find the correct ports. If issues persist, try: npx opendia --kill-existing</span>`;
   }
 }
 

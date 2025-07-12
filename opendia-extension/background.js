@@ -1,12 +1,44 @@
 // MCP Server connection configuration
-const MCP_SERVER_URL = 'ws://localhost:3000';
+let MCP_SERVER_URL = 'ws://localhost:5555'; // Default, will be auto-discovered
 let mcpSocket = null;
 let reconnectInterval = null;
 let reconnectAttempts = 0;
+let lastKnownPorts = { websocket: 5555, http: 5556 }; // Cache for port discovery
+
+// Port discovery function
+async function discoverServerPorts() {
+  // Try common HTTP ports to find the server
+  const commonPorts = [5556, 5557, 5558, 3001, 6001, 6002, 6003];
+  
+  for (const httpPort of commonPorts) {
+    try {
+      const response = await fetch(`http://localhost:${httpPort}/ports`);
+      if (response.ok) {
+        const portInfo = await response.json();
+        console.log('🔍 Discovered server ports:', portInfo);
+        lastKnownPorts = { websocket: portInfo.websocket, http: portInfo.http };
+        MCP_SERVER_URL = portInfo.websocketUrl;
+        return portInfo;
+      }
+    } catch (error) {
+      // Port not available or not OpenDia server, continue searching
+    }
+  }
+  
+  // Fallback to default if discovery fails
+  console.log('⚠️ Port discovery failed, using defaults');
+  return null;
+}
 
 // Initialize WebSocket connection to MCP server
-function connectToMCPServer() {
+async function connectToMCPServer() {
   if (mcpSocket && mcpSocket.readyState === WebSocket.OPEN) return;
+  
+  // Try port discovery if using default URL or if connection failed
+  if (MCP_SERVER_URL === 'ws://localhost:5555' || reconnectAttempts > 2) {
+    await discoverServerPorts();
+    reconnectAttempts = 0; // Reset attempts after discovery
+  }
   
   console.log('🔗 Connecting to MCP server at', MCP_SERVER_URL);
   mcpSocket = new WebSocket(MCP_SERVER_URL);
@@ -32,12 +64,20 @@ function connectToMCPServer() {
   
   mcpSocket.onclose = () => {
     console.log('❌ Disconnected from MCP server, will reconnect...');
+    reconnectAttempts++;
+    
+    // Clear any existing reconnect interval
+    if (reconnectInterval) {
+      clearInterval(reconnectInterval);
+    }
+    
     // Attempt to reconnect every 5 seconds
     reconnectInterval = setInterval(connectToMCPServer, 5000);
   };
   
   mcpSocket.onerror = (error) => {
     console.log('⚠️ MCP WebSocket error:', error);
+    reconnectAttempts++;
   };
 }
 
@@ -1116,8 +1156,10 @@ async function getSelectedText(params) {
   }
 }
 
-// Initialize connection when extension loads
-connectToMCPServer();
+// Initialize connection when extension loads (with delay for server startup)
+setTimeout(() => {
+  connectToMCPServer();
+}, 1000);
 
 // Heartbeat to keep connection alive
 setInterval(() => {
@@ -1141,6 +1183,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "reconnect") {
     connectToMCPServer();
     sendResponse({ success: true });
+  } else if (request.action === "getPorts") {
+    sendResponse({
+      current: lastKnownPorts,
+      websocketUrl: MCP_SERVER_URL
+    });
   } else if (request.action === "test") {
     if (mcpSocket && mcpSocket.readyState === WebSocket.OPEN) {
       mcpSocket.send(JSON.stringify({ type: "test", timestamp: Date.now() }));

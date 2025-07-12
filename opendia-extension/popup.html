@@ -255,9 +255,9 @@
       <span id="statusText" class="tooltip">
         Checking connection...
         <span class="tooltip-content">
-          Make sure your MCP server is connected.
-          If it's the case, click on Reconnect.
-          If it still don't work, kill your 3000 port & try again.
+          Start server with: npx opendia
+          Auto-discovery will find the correct ports.
+          If issues persist, try: npx opendia --kill-existing
         </span>
       </span>
     </div>
@@ -265,7 +265,7 @@
     <div class="info">
       <div class="info-row">
         <span class="info-label">Server</span>
-        <span class="info-value" id="serverUrl">ws://localhost:3000</span>
+        <span class="info-value" id="serverUrl">Auto-Discovery</span>
       </div>
       <div class="info-row">
         <span class="info-label">Available Tools</span>
