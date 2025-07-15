@@ -803,6 +803,54 @@ function formatLinksResult(result, metadata) {
 }
 
 function formatTabCreateResult(result, metadata) {
+  // Handle batch operations
+  if (result.batch_operation) {
+    const { summary, created_tabs, settings_used, warnings, errors } = result;
+    
+    let output = `🚀 Batch tab creation completed
+📊 Summary: ${summary.successful}/${summary.total_requested} tabs created successfully
+⏱️ Execution time: ${summary.execution_time_ms}ms
+📦 Chunks processed: ${summary.chunks_processed}
+
+`;
+
+    // Add warnings if any
+    if (warnings && warnings.length > 0) {
+      output += `⚠️ Warnings:\n${warnings.map(w => `   • ${w}`).join('\n')}\n\n`;
+    }
+
+    // Add created tabs info
+    if (created_tabs && created_tabs.length > 0) {
+      output += `✅ Created tabs:\n`;
+      created_tabs.forEach((tab, index) => {
+        output += `   ${index + 1}. ${tab.title || 'New Tab'} (ID: ${tab.tab_id})\n`;
+        output += `      🌐 ${tab.actual_url || tab.url}\n`;
+        if (tab.active) output += `      🎯 Active tab\n`;
+      });
+      output += '\n';
+    }
+
+    // Add errors if any
+    if (errors && errors.length > 0) {
+      output += `❌ Errors:\n`;
+      errors.forEach((error, index) => {
+        output += `   ${index + 1}. ${error.url}: ${error.error}\n`;
+      });
+      output += '\n';
+    }
+
+    // Add settings used (if available)
+    if (settings_used) {
+      output += `⚙️ Settings used:\n`;
+      output += `   • Chunk size: ${settings_used.chunk_size}\n`;
+      output += `   • Delay between chunks: ${settings_used.delay_between_chunks}ms\n`;
+      output += `   • Delay between tabs: ${settings_used.delay_between_tabs}ms\n`;
+    }
+
+    return output + `\n${JSON.stringify(metadata, null, 2)}`;
+  }
+
+  // Handle single tab operations (existing logic)
   if (result.success) {
     return `✅ New tab created successfully
 🆔 Tab ID: ${result.tab_id}
@@ -907,7 +955,7 @@ function getFallbackTools() {
     {
       name: "page_analyze",
       description:
-        "🎯 Analyze page structure with anti-detection bypass (Extension required)",
+        "🔍 BACKGROUND TAB READY: Analyze any tab without switching! Two-phase intelligent page analysis with token efficiency optimization. Use tab_id parameter to analyze background tabs while staying on current page. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -930,7 +978,7 @@ function getFallbackTools() {
     {
       name: "page_extract_content",
       description:
-        "📄 Extract structured content with smart summarization (Extension required)",
+        "📄 BACKGROUND TAB READY: Extract content from any tab without switching! Perfect for analyzing multiple research tabs, articles, or pages simultaneously. Use tab_id to target specific background tabs. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -952,7 +1000,7 @@ function getFallbackTools() {
     {
       name: "element_click",
       description:
-        "🖱️ Click page elements with smart targeting (Extension required)",
+        "🖱️ BACKGROUND TAB READY: Click elements in any tab without switching! Perform actions on background tabs while staying on current page. Use tab_id to target specific tabs. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -972,7 +1020,7 @@ function getFallbackTools() {
     {
       name: "element_fill",
       description:
-        "✍️ Fill input fields with anti-detection bypass for Twitter/X, LinkedIn, Facebook (Extension required)",
+        "✏️ BACKGROUND TAB READY: Fill forms in any tab without switching! Enhanced focus and event simulation for modern web apps with anti-detection bypass for Twitter/X, LinkedIn, Facebook. Use tab_id to fill forms in background tabs. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -1035,27 +1083,73 @@ function getFallbackTools() {
     // Tab Management Tools
     {
       name: "tab_create",
-      description: "🆕 Create a new tab with optional URL and activation (Extension required)",
+      description: "Creates tabs. CRITICAL: For multiple identical tabs, ALWAYS use 'count' parameter! Examples: {url: 'https://x.com', count: 5} creates 5 Twitter tabs. {url: 'https://github.com', count: 10} creates 10 GitHub tabs. Single tab: {url: 'https://example.com'}. Multiple different URLs: {urls: ['url1', 'url2']}.",
       inputSchema: {
         type: "object",
+        examples: [
+          { url: "https://x.com", count: 5 },  // CORRECT: Creates 5 identical Twitter tabs in one batch
+          { url: "https://github.com", count: 10 },  // CORRECT: Creates 10 GitHub tabs 
+          { urls: ["https://x.com/post1", "https://x.com/post2", "https://google.com"] },  // CORRECT: Different URLs in batch
+          { url: "https://example.com" }  // Single tab only
+        ],
         properties: {
           url: {
             type: "string",
-            description: "URL to open in the new tab (optional)"
+            description: "Single URL to open. Can be used with 'count' to create multiple identical tabs"
+          },
+          urls: {
+            type: "array",
+            items: { type: "string" },
+            description: "PREFERRED FOR MULTIPLE URLS: Array of URLs to open ALL AT ONCE in a single batch operation. Pass ALL URLs here instead of making multiple calls! Example: ['https://x.com/post1', 'https://x.com/post2', 'https://google.com']",
+            maxItems: 100
+          },
+          count: {
+            type: "number",
+            default: 1,
+            minimum: 1,
+            maximum: 50,
+            description: "REQUIRED FOR MULTIPLE IDENTICAL TABS: Set this to N to create N copies of the same URL. For '5 Twitter tabs' use count=5 with url='https://x.com'. DO NOT make 5 separate calls!"
           },
           active: {
             type: "boolean",
             default: true,
-            description: "Whether to activate the new tab"
+            description: "Whether to activate the last created tab (single tab only)"
           },
           wait_for: {
             type: "string",
-            description: "CSS selector to wait for after tab creation (if URL provided)"
+            description: "CSS selector to wait for after tab creation (single tab only)"
           },
           timeout: {
             type: "number",
             default: 10000,
-            description: "Maximum wait time in milliseconds"
+            description: "Maximum wait time per tab in milliseconds"
+          },
+          batch_settings: {
+            type: "object",
+            description: "Performance control settings for batch operations",
+            properties: {
+              chunk_size: {
+                type: "number",
+                default: 5,
+                minimum: 1,
+                maximum: 10,
+                description: "Number of tabs to create per batch"
+              },
+              delay_between_chunks: {
+                type: "number",
+                default: 1000,
+                minimum: 100,
+                maximum: 5000,
+                description: "Delay between batches in milliseconds"
+              },
+              delay_between_tabs: {
+                type: "number",
+                default: 200,
+                minimum: 50,
+                maximum: 1000,
+                description: "Delay between individual tabs in milliseconds"
+              }
+            }
           }
         }
       }
@@ -1080,7 +1174,7 @@ function getFallbackTools() {
     },
     {
       name: "tab_list",
-      description: "📋 Get list of all open tabs with their details (Extension required)",
+      description: "📋 TAB DISCOVERY: Get list of all open tabs with IDs for background tab targeting! Shows content script readiness status and tab details. Essential for multi-tab workflows - use tab IDs with other tools to work on background tabs. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -1215,7 +1309,7 @@ function getFallbackTools() {
     },
     {
       name: "get_selected_text",
-      description: "📝 Get the currently selected text on the page (Extension required)",
+      description: "📝 BACKGROUND TAB READY: Get selected text from any tab without switching! Perfect for collecting quotes, citations, or highlighted content from multiple research tabs simultaneously. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {
@@ -1234,7 +1328,7 @@ function getFallbackTools() {
     },
     {
       name: "page_scroll",
-      description: "📜 Scroll the page in various directions - critical for long pages (Extension required)",
+      description: "📜 BACKGROUND TAB READY: Scroll any tab without switching! Critical for long pages. Navigate through content in background tabs while staying on current page. Use tab_id to target specific tabs. (Extension required)",
       inputSchema: {
         type: "object",
         properties: {

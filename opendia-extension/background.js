@@ -17,6 +17,135 @@ chrome.storage.local.get(['safetyMode'], (result) => {
   safetyModeEnabled = result.safetyMode || false;
 });
 
+// Content script management for background tabs
+async function ensureContentScriptReady(tabId, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Test if content script is responsive
+      const response = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Content script ping timeout'));
+        }, 2000);
+        
+        chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+          clearTimeout(timeout);
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
+      });
+      
+      if (response && response.success) {
+        console.log(`✅ Content script ready in tab ${tabId}`);
+        return true;
+      }
+    } catch (error) {
+      console.log(`⚠️ Content script not responsive in tab ${tabId}, attempt ${attempt}/${retries}`);
+      
+      if (attempt === retries) {
+        // Last attempt - try to inject content script
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          
+          // Check if tab URL is injectable (not chrome://, chrome-extension://, etc.)
+          if (!isInjectableUrl(tab.url)) {
+            throw new Error(`Cannot inject content script into ${tab.url} - restricted URL`);
+          }
+          
+          console.log(`🔄 Injecting content script into tab ${tabId}`);
+          await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+          });
+          
+          // Wait a moment for script to initialize
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Test again
+          const testResponse = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Timeout after injection')), 3000);
+            chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+              clearTimeout(timeout);
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            });
+          });
+          
+          if (testResponse && testResponse.success) {
+            console.log(`✅ Content script successfully injected into tab ${tabId}`);
+            return true;
+          }
+          
+        } catch (injectionError) {
+          throw new Error(`Failed to inject content script into tab ${tabId}: ${injectionError.message}`);
+        }
+      }
+      
+      // Wait before retry
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  
+  throw new Error(`Content script not available in tab ${tabId} after ${retries} attempts`);
+}
+
+// Check if URL allows content script injection
+function isInjectableUrl(url) {
+  if (!url) return false;
+  
+  const restrictedProtocols = ['chrome:', 'chrome-extension:', 'chrome-devtools:', 'edge:', 'moz-extension:'];
+  const restrictedDomains = ['chrome.google.com'];
+  
+  // Check protocol
+  if (restrictedProtocols.some(protocol => url.startsWith(protocol))) {
+    return false;
+  }
+  
+  // Check special Chrome pages
+  if (url.startsWith('https://chrome.google.com/webstore') || 
+      url.includes('chrome://') || 
+      restrictedDomains.some(domain => url.includes(domain))) {
+    return false;
+  }
+  
+  return true;
+}
+
+// Get content script readiness status for a tab
+async function getTabContentScriptStatus(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    
+    if (!isInjectableUrl(tab.url)) {
+      return { ready: false, reason: 'restricted_url', url: tab.url };
+    }
+    
+    const response = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => resolve(null), 1000);
+      chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+        clearTimeout(timeout);
+        resolve(response);
+      });
+    });
+    
+    if (response && response.success) {
+      return { ready: true, reason: 'active', url: tab.url };
+    } else {
+      return { ready: false, reason: 'not_loaded', url: tab.url };
+    }
+    
+  } catch (error) {
+    return { ready: false, reason: 'tab_error', error: error.message };
+  }
+}
+
 // Port discovery function
 async function discoverServerPorts() {
   // Try common HTTP ports to find the server
@@ -96,12 +225,33 @@ async function connectToMCPServer() {
 // Define available browser automation tools for MCP
 function getAvailableTools() {
   return [
+    /*
+    🎯 BACKGROUND TAB WORKFLOW GUIDE:
+    
+    1. DISCOVER TABS: Use tab_list with check_content_script=true to see all tabs and their IDs
+    2. TARGET SPECIFIC TABS: Add tab_id parameter to any tool to work on background tabs
+    3. MULTI-TAB OPERATIONS: Process multiple tabs without switching between them
+    
+    Example Multi-Tab Workflow:
+    - tab_list({check_content_script: true}) → Get tab IDs and readiness status
+    - page_analyze({intent_hint: "article", tab_id: 12345}) → Analyze background research tab
+    - page_extract_content({content_type: "article", tab_id: 12345}) → Extract content without switching
+    - get_selected_text({tab_id: 67890}) → Get quotes from another background tab
+    
+    Perfect for: Research workflows, content analysis, form processing, social media management
+    */
+    
     // Page Analysis Tools
     {
       name: "page_analyze",
-      description: "Two-phase intelligent page analysis with token efficiency optimization",
+      description: "🔍 BACKGROUND TAB READY: Analyze any tab without switching to it! Two-phase intelligent page analysis with token efficiency optimization. Use tab_id parameter to analyze background tabs while staying on current page.",
       inputSchema: {
         type: "object",
+        examples: [
+          { intent_hint: "analyze", phase: "discover" },  // Current tab quick analysis
+          { intent_hint: "login", tab_id: 12345 },  // Background tab login form analysis
+          { intent_hint: "post_create", tab_id: 67890, phase: "detailed" }  // Background tab detailed analysis
+        ],
         properties: {
           intent_hint: {
             type: "string",
@@ -128,6 +278,10 @@ function getAvailableTools() {
             type: "array",
             items: { type: "string" },
             description: "Expand specific quick match IDs from discover phase (e.g. ['q1', 'q2'])"
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Specify tab ID to analyze background tabs without switching! Get tab IDs from tab_list. If omitted, analyzes current active tab."
           }
         },
         required: ["intent_hint"]
@@ -135,9 +289,14 @@ function getAvailableTools() {
     },
     {
       name: "page_extract_content",
-      description: "Extract and summarize structured content with token efficiency optimization",
+      description: "📄 BACKGROUND TAB READY: Extract content from any tab without switching! Perfect for analyzing multiple research tabs, articles, or pages simultaneously. Use tab_id to target specific background tabs.",
       inputSchema: {
         type: "object",
+        examples: [
+          { content_type: "article" },  // Extract from current tab
+          { content_type: "article", tab_id: 12345 },  // Extract from background research tab
+          { content_type: "posts", tab_id: 67890, max_items: 10 }  // Extract social media posts from background tab
+        ],
         properties: {
           content_type: {
             type: "string",
@@ -153,6 +312,10 @@ function getAvailableTools() {
             type: "boolean",
             default: true,
             description: "Return summary instead of full content to save tokens"
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Extract content from specific background tab without switching! Use tab_list to get tab IDs. Perfect for processing multiple research tabs."
           }
         },
         required: ["content_type"]
@@ -162,7 +325,7 @@ function getAvailableTools() {
     // Element Interaction Tools
     {
       name: "element_click",
-      description: "Click on a specific page element",
+      description: "🖱️ BACKGROUND TAB READY: Click elements in any tab without switching! Perform actions on background tabs while staying on current page. Use tab_id to target specific tabs.",
       inputSchema: {
         type: "object",
         properties: {
@@ -179,6 +342,10 @@ function getAvailableTools() {
             type: "number",
             description: "Milliseconds to wait after click",
             default: 500
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Click elements in background tabs without switching! Get tab IDs from tab_list to interact with multiple tabs efficiently."
           }
         },
         required: ["element_id"]
@@ -186,7 +353,7 @@ function getAvailableTools() {
     },
     {
       name: "element_fill",
-      description: "Fill input field with enhanced focus and event simulation for modern web apps",
+      description: "✏️ BACKGROUND TAB READY: Fill forms in any tab without switching! Enhanced focus and event simulation for modern web apps. Use tab_id to fill forms in background tabs.",
       inputSchema: {
         type: "object",
         properties: {
@@ -207,6 +374,10 @@ function getAvailableTools() {
             type: "boolean",
             description: "Use enhanced focus sequence with click simulation for modern apps",
             default: true
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Fill forms in background tabs without switching! Perfect for batch form filling across multiple tabs. Get tab IDs from tab_list."
           }
         },
         required: ["element_id", "value"]
@@ -216,7 +387,7 @@ function getAvailableTools() {
     // Navigation Tools
     {
       name: "page_navigate",
-      description: "Navigate to specified URL and wait for page load",
+      description: "Navigate CURRENT tab to a new URL. Use tab_create instead if you want to open a NEW tab with a URL.",
       inputSchema: {
         type: "object",
         properties: {
@@ -269,27 +440,73 @@ function getAvailableTools() {
     // Tab Management Tools
     {
       name: "tab_create",
-      description: "Create a new tab with optional URL and activation",
+      description: "Creates tabs. CRITICAL: For multiple identical tabs, ALWAYS use 'count' parameter! Examples: {url: 'https://x.com', count: 5} creates 5 Twitter tabs. {url: 'https://github.com', count: 10} creates 10 GitHub tabs. Single tab: {url: 'https://example.com'}. Multiple different URLs: {urls: ['url1', 'url2']}.",
       inputSchema: {
         type: "object",
+        examples: [
+          { url: "https://x.com", count: 5 },  // CORRECT: Creates 5 identical Twitter tabs in one batch
+          { url: "https://github.com", count: 10 },  // CORRECT: Creates 10 GitHub tabs 
+          { urls: ["https://x.com/post1", "https://x.com/post2", "https://google.com"] },  // CORRECT: Different URLs in batch
+          { url: "https://example.com" }  // Single tab only
+        ],
         properties: {
           url: {
             type: "string",
-            description: "URL to open in the new tab (optional)"
+            description: "Single URL to open. Can be used with 'count' to create multiple identical tabs"
+          },
+          urls: {
+            type: "array",
+            items: { type: "string" },
+            description: "PREFERRED FOR MULTIPLE URLS: Array of URLs to open ALL AT ONCE in a single batch operation. Pass ALL URLs here instead of making multiple calls! Example: ['https://x.com/post1', 'https://x.com/post2', 'https://google.com']",
+            maxItems: 100
+          },
+          count: {
+            type: "number",
+            default: 1,
+            minimum: 1,
+            maximum: 50,
+            description: "REQUIRED FOR MULTIPLE IDENTICAL TABS: Set this to N to create N copies of the same URL. For '5 Twitter tabs' use count=5 with url='https://x.com'. DO NOT make 5 separate calls!"
           },
           active: {
             type: "boolean",
             default: true,
-            description: "Whether to activate the new tab"
+            description: "Whether to activate the last created tab (single tab only)"
           },
           wait_for: {
             type: "string",
-            description: "CSS selector to wait for after tab creation (if URL provided)"
+            description: "CSS selector to wait for after tab creation (single tab only)"
           },
           timeout: {
             type: "number",
             default: 10000,
-            description: "Maximum wait time in milliseconds"
+            description: "Maximum wait time per tab in milliseconds"
+          },
+          batch_settings: {
+            type: "object",
+            description: "Performance control settings for batch operations",
+            properties: {
+              chunk_size: {
+                type: "number",
+                default: 5,
+                minimum: 1,
+                maximum: 10,
+                description: "Number of tabs to create per batch"
+              },
+              delay_between_chunks: {
+                type: "number",
+                default: 1000,
+                minimum: 100,
+                maximum: 5000,
+                description: "Delay between batches in milliseconds"
+              },
+              delay_between_tabs: {
+                type: "number",
+                default: 200,
+                minimum: 50,
+                maximum: 1000,
+                description: "Delay between individual tabs in milliseconds"
+              }
+            }
           }
         }
       }
@@ -314,9 +531,13 @@ function getAvailableTools() {
     },
     {
       name: "tab_list",
-      description: "Get list of all open tabs with their details",
+      description: "📋 TAB DISCOVERY: Get list of all open tabs with IDs for background tab targeting! Shows content script readiness status and tab details. Essential for multi-tab workflows - use tab IDs with other tools to work on background tabs.",
       inputSchema: {
         type: "object",
+        examples: [
+          { check_content_script: true },  // RECOMMENDED: Check which tabs are ready for background operations
+          { current_window_only: false, check_content_script: true }  // Check all tabs across windows
+        ],
         properties: {
           current_window_only: {
             type: "boolean",
@@ -327,6 +548,11 @@ function getAvailableTools() {
             type: "boolean",
             default: true,
             description: "Include additional tab details (title, favicon, etc.)"
+          },
+          check_content_script: {
+            type: "boolean",
+            default: false,
+            description: "🔍 ESSENTIAL FOR BACKGROUND TABS: Check which tabs are ready for background operations! Set to true when planning multi-tab workflows to see which tabs can be targeted."
           }
         }
       }
@@ -450,7 +676,7 @@ function getAvailableTools() {
     },
     {
       name: "get_selected_text",
-      description: "Get the currently selected text on the page",
+      description: "📝 BACKGROUND TAB READY: Get selected text from any tab without switching! Perfect for collecting quotes, citations, or highlighted content from multiple research tabs simultaneously.",
       inputSchema: {
         type: "object",
         properties: {
@@ -463,13 +689,17 @@ function getAvailableTools() {
             type: "number",
             default: 10000,
             description: "Maximum length of text to return"
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Get selected text from background tabs without switching! Perfect for collecting quotes or snippets from multiple research tabs."
           }
         }
       }
     },
     {
       name: "page_scroll",
-      description: "Scroll the page in various directions and amounts - critical for long pages",
+      description: "📜 BACKGROUND TAB READY: Scroll any tab without switching! Critical for long pages. Navigate through content in background tabs while staying on current page. Use tab_id to target specific tabs.",
       inputSchema: {
         type: "object",
         properties: {
@@ -502,6 +732,10 @@ function getAvailableTools() {
             type: "number",
             default: 500,
             description: "Milliseconds to wait after scrolling"
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Scroll content in background tabs without switching! Perfect for navigating long documents or pages in multiple tabs simultaneously."
           }
         }
       }
@@ -542,30 +776,31 @@ async function handleMCPRequest(message) {
   try {
     // Safety Mode check: Block write/edit tools if safety mode is enabled
     if (safetyModeEnabled && WRITE_EDIT_TOOLS.includes(method)) {
-      throw new Error(`🛡️ Safety Mode is enabled. This tool (${method}) is blocked to prevent page modifications. To disable Safety Mode, open the OpenDia extension popup and toggle off "Safety Mode".`);
+      const targetInfo = params.tab_id ? `tab ${params.tab_id}` : 'the current page';
+      throw new Error(`🛡️ Safety Mode is enabled. This tool (${method}) is blocked to prevent modifications to ${targetInfo}. To disable Safety Mode, open the OpenDia extension popup and toggle off "Safety Mode".`);
     }
 
     let result;
 
     switch (method) {
-      // New automation tools
+      // New automation tools with background tab support
       case "page_analyze":
-        result = await sendToContentScript('analyze', params);
+        result = await sendToContentScript('analyze', params, params.tab_id);
         break;
       case "page_extract_content":
-        result = await sendToContentScript('extract_content', params);
+        result = await sendToContentScript('extract_content', params, params.tab_id);
         break;
       case "element_click":
-        result = await sendToContentScript('element_click', params);
+        result = await sendToContentScript('element_click', params, params.tab_id);
         break;
       case "element_fill":
-        result = await sendToContentScript('element_fill', params);
+        result = await sendToContentScript('element_fill', params, params.tab_id);
         break;
       case "page_navigate":
         result = await navigateToUrl(params.url, params.wait_for, params.timeout);
         break;
       case "page_wait_for":
-        result = await sendToContentScript('wait_for', params);
+        result = await sendToContentScript('wait_for', params, params.tab_id);
         break;
         
       // Tab management tools
@@ -584,7 +819,7 @@ async function handleMCPRequest(message) {
         
       // Element state tools
       case "element_get_state":
-        result = await sendToContentScript('get_element_state', params);
+        result = await sendToContentScript('get_element_state', params, params.tab_id);
         break;
       // Workspace and Reference Management Tools
       case "get_bookmarks":
@@ -600,10 +835,10 @@ async function handleMCPRequest(message) {
         result = await getSelectedText(params);
         break;
       case "page_scroll":
-        result = await sendToContentScript('page_scroll', params);
+        result = await sendToContentScript('page_scroll', params, params.tab_id);
         break;
       case "get_page_links":
-        result = await sendToContentScript('get_page_links', params);
+        result = await sendToContentScript('get_page_links', params, params.tab_id);
         break;
       default:
         throw new Error(`Unknown method: ${method}`);
@@ -630,25 +865,41 @@ async function handleMCPRequest(message) {
   }
 }
 
-// Enhanced content script communication
-async function sendToContentScript(action, data) {
-  const [activeTab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
-  });
+// Enhanced content script communication with background tab support
+async function sendToContentScript(action, data, targetTabId = null) {
+  let targetTab;
   
-  if (!activeTab) {
-    throw new Error('No active tab found');
+  if (targetTabId) {
+    // Use specific tab
+    try {
+      targetTab = await chrome.tabs.get(targetTabId);
+    } catch (error) {
+      throw new Error(`Tab ${targetTabId} not found or inaccessible`);
+    }
+  } else {
+    // Fallback to active tab (maintains compatibility)
+    const [activeTab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    
+    if (!activeTab) {
+      throw new Error('No active tab found');
+    }
+    targetTab = activeTab;
   }
   
+  // Ensure content script is available in the target tab
+  await ensureContentScriptReady(targetTab.id);
+  
   return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(activeTab.id, { action, data }, (response) => {
+    chrome.tabs.sendMessage(targetTab.id, { action, data }, (response) => {
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+        reject(new Error(`Tab ${targetTab.id}: ${chrome.runtime.lastError.message}`));
       } else if (response && response.success) {
         resolve(response.data);
       } else {
-        reject(new Error(response?.error || 'Unknown error'));
+        reject(new Error(`Tab ${targetTab.id}: ${response?.error || 'Unknown error'}`));
       }
     });
   });
@@ -702,27 +953,150 @@ async function waitForElement(tabId, selector, timeout = 5000) {
   throw new Error(`Timeout waiting for element: ${selector}`);
 }
 
-// Tab Management Functions
+// Enhanced Tab Management Functions with Batch Support
 async function createTab(params) {
-  const { url, active = true, wait_for, timeout = 10000 } = params;
+  const { 
+    url, 
+    urls, 
+    count = 1, 
+    active = true, 
+    wait_for, 
+    timeout = 10000,
+    batch_settings = {}
+  } = params;
   
+  // Smart hint: If creating single tab but description suggests multiple, provide guidance
+  if (count === 1 && !urls) {
+    console.log(`💡 Single tab creation. For multiple identical tabs, use count parameter: {"url": "${url}", "count": N}`);
+  }
+  
+  // Validate parameters
+  const validation = validateTabCreateParams(params);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+  
+  console.log(`🎯 Tab creation request:`, { url, urls, count, batch_settings, hasBatchSettings: !!batch_settings });
+  
+  // Determine operation type
+  if (urls && urls.length > 0) {
+    // Batch creation with multiple URLs
+    console.log(`🚀 Using batch mode with ${urls.length} URLs`);
+    return await createTabsBatch(urls, active, wait_for, timeout, batch_settings);
+  } else if (url && count > 1) {
+    // Batch creation with same URL repeated
+    console.log(`🔄 Using repeat mode: ${count} copies of ${url}`);
+    const urlArray = Array(count).fill(url);
+    return await createTabsBatch(urlArray, active, wait_for, timeout, batch_settings);
+  } else {
+    // Single tab creation (legacy behavior)
+    console.log(`📱 Using single tab mode for: ${url || 'about:blank'}`);
+    return await createSingleTab(url, active, wait_for, timeout);
+  }
+}
+
+// Parameter validation
+function validateTabCreateParams(params) {
+  const { url, urls, count = 1 } = params;
+  
+  // Check for conflicting parameters
+  if (url && urls) {
+    return { valid: false, error: "Cannot specify both 'url' and 'urls' parameters" };
+  }
+  
+  if (urls && count > 1) {
+    return { valid: false, error: "Cannot use 'count' with 'urls' array" };
+  }
+  
+  // Allow empty URL for about:blank tabs
+  if (!url && !urls && count > 1) {
+    return { valid: false, error: "Must specify 'url' when using 'count' parameter" };
+  }
+  
+  // Validate URLs array
+  if (urls) {
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return { valid: false, error: "'urls' must be a non-empty array" };
+    }
+    
+    if (urls.length > 100) {
+      return { valid: false, error: "Maximum 100 URLs allowed in batch operation" };
+    }
+    
+    // Validate each URL
+    for (let i = 0; i < urls.length; i++) {
+      if (typeof urls[i] !== 'string' || !urls[i].trim()) {
+        return { valid: false, error: `Invalid URL at index ${i}: must be a non-empty string` };
+      }
+    }
+  }
+  
+  // Validate count
+  if (count < 1 || count > 50) {
+    return { valid: false, error: "Count must be between 1 and 50" };
+  }
+  
+  return { valid: true };
+}
+
+// Single tab creation (original behavior)
+async function createSingleTab(url, active, wait_for, timeout) {
   const createProperties = { active };
   if (url) {
     createProperties.url = url;
   }
   
+  console.log(`🔍 Creating single tab with properties:`, createProperties);
   const newTab = await chrome.tabs.create(createProperties);
+  console.log(`📝 Tab created:`, { id: newTab.id, url: newTab.url, pendingUrl: newTab.pendingUrl });
   
-  // If URL was provided and wait_for is specified, wait for the element
-  if (url && wait_for) {
+  // Wait a moment for the URL to load
+  if (url) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Check if tab loaded correctly
     try {
-      await waitForElement(newTab.id, wait_for, timeout);
-    } catch (error) {
+      const updatedTab = await chrome.tabs.get(newTab.id);
+      console.log(`🔄 Tab after load check:`, { id: updatedTab.id, url: updatedTab.url, status: updatedTab.status });
+      
+      // If URL was provided and wait_for is specified, wait for the element
+      if (wait_for) {
+        try {
+          await waitForElement(newTab.id, wait_for, timeout);
+        } catch (error) {
+          return {
+            success: true,
+            tab_id: newTab.id,
+            url: updatedTab.url,
+            actual_url: updatedTab.url,
+            requested_url: url,
+            warning: `Tab created but wait condition failed: ${error.message}`
+          };
+        }
+      }
+      
       return {
         success: true,
         tab_id: newTab.id,
-        url: newTab.url,
-        warning: `Tab created but wait condition failed: ${error.message}`
+        url: updatedTab.url || updatedTab.pendingUrl || url,
+        actual_url: updatedTab.url || updatedTab.pendingUrl,
+        requested_url: url,
+        active: updatedTab.active,
+        status: updatedTab.status,
+        title: updatedTab.title || 'New Tab',
+        note: updatedTab.url === 'about:blank' && updatedTab.pendingUrl ? 'Tab is still loading' : undefined
+      };
+    } catch (error) {
+      console.error(`❌ Error checking tab status:`, error);
+      return {
+        success: true,
+        tab_id: newTab.id,
+        url: newTab.url || 'about:blank',
+        actual_url: newTab.url,
+        requested_url: url,
+        active: newTab.active,
+        title: newTab.title || 'New Tab',
+        warning: `Tab created but status check failed: ${error.message}`
       };
     }
   }
@@ -734,6 +1108,169 @@ async function createTab(params) {
     active: newTab.active,
     title: newTab.title || 'New Tab'
   };
+}
+
+// Batch tab creation with performance throttling
+async function createTabsBatch(urls, active, wait_for, timeout, batch_settings = {}) {
+  console.log('🔍 createTabsBatch called with:', { urls: urls.length, batch_settings });
+  
+  const {
+    chunk_size = 5,
+    delay_between_chunks = 1000,
+    delay_between_tabs = 200
+  } = batch_settings || {};
+  
+  const startTime = Date.now();
+  const totalTabs = urls.length;
+  const createdTabs = [];
+  const errors = [];
+  
+  // Performance warnings
+  const warnings = [];
+  if (totalTabs > 20) {
+    warnings.push(`Creating ${totalTabs} tabs may impact browser performance`);
+  }
+  if (totalTabs > 45) {
+    warnings.push(`Large batch (${totalTabs} tabs) may hit Chrome's tab limits or cause memory issues`);
+  }
+  
+  console.log(`🚀 Starting batch tab creation: ${totalTabs} tabs in chunks of ${chunk_size}`);
+  
+  // Process in chunks
+  for (let chunkStart = 0; chunkStart < urls.length; chunkStart += chunk_size) {
+    const chunkEnd = Math.min(chunkStart + chunk_size, urls.length);
+    const chunk = urls.slice(chunkStart, chunkEnd);
+    const chunkIndex = Math.floor(chunkStart / chunk_size) + 1;
+    const totalChunks = Math.ceil(urls.length / chunk_size);
+    
+    // Reduced logging for better performance
+    if (totalTabs > 10) {
+      console.log(`📦 Chunk ${chunkIndex}/${totalChunks}`);
+    }
+    
+    // Create tabs in current chunk with delays
+    for (let i = 0; i < chunk.length; i++) {
+      const url = chunk[i];
+      const globalIndex = chunkStart + i;
+      const isLastTab = globalIndex === totalTabs - 1;
+      
+      try {
+        // Only activate the very last tab if active=true
+        const shouldActivate = active && isLastTab;
+        
+        const tab = await chrome.tabs.create({
+          url: url,
+          active: shouldActivate
+        });
+        
+        // Wait a moment and check actual URL
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const updatedTab = await chrome.tabs.get(tab.id);
+        
+        createdTabs.push({
+          tab_id: tab.id,
+          url: updatedTab.url || url,
+          requested_url: url,
+          index: globalIndex,
+          active: updatedTab.active,
+          title: updatedTab.title || `Tab ${globalIndex + 1}`
+        });
+        
+        // Only log for small batches to avoid context overflow
+        if (totalTabs <= 5) {
+          console.log(`✅ Created tab ${globalIndex + 1}/${totalTabs}: ${url} (ID: ${tab.id})`);
+        }
+        
+        // Wait between individual tabs (except last in chunk)
+        if (i < chunk.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay_between_tabs));
+        }
+        
+      } catch (error) {
+        console.error(`❌ Failed to create tab ${globalIndex + 1}: ${error.message}`);
+        errors.push({
+          index: globalIndex,
+          url: url,
+          error: error.message
+        });
+      }
+    }
+    
+    // Wait between chunks (except after last chunk)
+    if (chunkEnd < urls.length) {
+      if (totalTabs <= 10) {
+        console.log(`⏳ Waiting ${delay_between_chunks}ms before next chunk...`);
+      }
+      await new Promise(resolve => setTimeout(resolve, delay_between_chunks));
+    }
+  }
+  
+  const executionTime = Date.now() - startTime;
+  const successCount = createdTabs.length;
+  const errorCount = errors.length;
+  
+  console.log(`🏁 Batch creation complete: ${successCount}/${totalTabs} successful in ${executionTime}ms`);
+  
+  // Prepare result - simplified to avoid context overflow
+  const result = {
+    success: errorCount === 0,
+    batch_operation: true,
+    summary: {
+      total_requested: totalTabs,
+      successful: successCount,
+      failed: errorCount,
+      execution_time_ms: executionTime
+    },
+    // Only include full tab details for small batches
+    created_tabs: totalTabs <= 10 ? createdTabs : createdTabs.map(tab => ({
+      tab_id: tab.tab_id,
+      url: tab.url
+    }))
+  };
+  
+  // Add warnings if any
+  if (warnings.length > 0) {
+    result.warnings = warnings;
+  }
+  
+  // Add errors if any
+  if (errors.length > 0) {
+    result.errors = errors;
+    result.partial_success = successCount > 0;
+  }
+  
+  // Add active tab info
+  const activeTabs = createdTabs.filter(tab => tab.active);
+  if (activeTabs.length > 0) {
+    result.active_tab = activeTabs[0];
+  }
+  
+  return result;
+}
+
+// Utility function to generate URLs for testing/demo purposes
+function generateTestUrls(baseUrl, count) {
+  const urls = [];
+  for (let i = 1; i <= count; i++) {
+    urls.push(`${baseUrl}?tab=${i}`);
+  }
+  return urls;
+}
+
+// Batch operation helper functions
+function estimateBatchTime(urlCount, batchSettings = {}) {
+  const {
+    chunk_size = 5,
+    delay_between_chunks = 1000,
+    delay_between_tabs = 200
+  } = batchSettings || {};
+  
+  const totalChunks = Math.ceil(urlCount / chunk_size);
+  const timePerChunk = (chunk_size - 1) * delay_between_tabs; // delays within chunk
+  const timeForChunks = totalChunks * timePerChunk;
+  const timeBetweenChunks = (totalChunks - 1) * delay_between_chunks;
+  
+  return timeForChunks + timeBetweenChunks; // in milliseconds
 }
 
 async function closeTabs(params) {
@@ -773,7 +1310,11 @@ async function closeTabs(params) {
 }
 
 async function listTabs(params) {
-  const { current_window_only = true, include_details = true } = params;
+  const { 
+    current_window_only = true, 
+    include_details = true,
+    check_content_script = false 
+  } = params;
   
   const queryOptions = {};
   if (current_window_only) {
@@ -782,6 +1323,24 @@ async function listTabs(params) {
   
   const tabs = await chrome.tabs.query(queryOptions);
   
+  // Check content script status if requested
+  const contentScriptStatuses = new Map();
+  if (check_content_script) {
+    const statusPromises = tabs.map(async (tab) => {
+      try {
+        const status = await getTabContentScriptStatus(tab.id);
+        return [tab.id, status];
+      } catch (error) {
+        return [tab.id, { ready: false, reason: 'error', error: error.message }];
+      }
+    });
+    
+    const results = await Promise.all(statusPromises);
+    results.forEach(([tabId, status]) => {
+      contentScriptStatuses.set(tabId, status);
+    });
+  }
+  
   const tabList = tabs.map(tab => {
     const basicInfo = {
       id: tab.id,
@@ -789,6 +1348,16 @@ async function listTabs(params) {
       active: tab.active,
       title: tab.title
     };
+    
+    // Add content script status if checked
+    if (check_content_script) {
+      const scriptStatus = contentScriptStatuses.get(tab.id);
+      basicInfo.content_script = {
+        ready: scriptStatus?.ready || false,
+        reason: scriptStatus?.reason || 'unknown',
+        injectable: isInjectableUrl(tab.url)
+      };
+    }
     
     if (include_details) {
       return {
@@ -805,11 +1374,28 @@ async function listTabs(params) {
     return basicInfo;
   });
   
+  // Calculate summary statistics
+  const summary = {
+    total_tabs: tabList.length,
+    active_tab: tabs.find(tab => tab.active)?.id || null
+  };
+  
+  if (check_content_script) {
+    const readyTabs = tabList.filter(tab => tab.content_script?.ready).length;
+    const injectableTabs = tabList.filter(tab => tab.content_script?.injectable).length;
+    
+    summary.content_script_stats = {
+      ready_count: readyTabs,
+      injectable_count: injectableTabs,
+      restricted_count: tabList.length - injectableTabs
+    };
+  }
+  
   return {
     success: true,
     tabs: tabList,
     count: tabList.length,
-    active_tab: tabs.find(tab => tab.active)?.id || null
+    summary
   };
 }
 
@@ -1015,30 +1601,50 @@ async function getHistory(params) {
 async function getSelectedText(params) {
   const {
     include_metadata = true,
-    max_length = 10000
+    max_length = 10000,
+    tab_id
   } = params;
 
   try {
-    // Get the active tab
-    const [activeTab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
+    let targetTab;
     
-    if (!activeTab) {
-      return {
-        success: false,
-        error: "No active tab found",
-        selected_text: "",
-        metadata: {
-          execution_time: new Date().toISOString()
-        }
-      };
+    if (tab_id) {
+      // Use specific tab
+      try {
+        targetTab = await chrome.tabs.get(tab_id);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Tab ${tab_id} not found or inaccessible`,
+          selected_text: "",
+          metadata: {
+            execution_time: new Date().toISOString()
+          }
+        };
+      }
+    } else {
+      // Get the active tab
+      const [activeTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      
+      if (!activeTab) {
+        return {
+          success: false,
+          error: "No active tab found",
+          selected_text: "",
+          metadata: {
+            execution_time: new Date().toISOString()
+          }
+        };
+      }
+      targetTab = activeTab;
     }
 
     // Execute script to get selected text
     const results = await chrome.scripting.executeScript({
-      target: { tabId: activeTab.id },
+      target: { tabId: targetTab.id },
       func: () => {
         const selection = window.getSelection();
         const selectedText = selection.toString();
@@ -1120,9 +1726,9 @@ async function getSelectedText(params) {
         metadata: {
           execution_time: new Date().toISOString(),
           tab_info: {
-            id: activeTab.id,
-            url: activeTab.url,
-            title: activeTab.title
+            id: targetTab.id,
+            url: targetTab.url,
+            title: targetTab.title
           }
         }
       };
@@ -1145,9 +1751,9 @@ async function getSelectedText(params) {
       metadata: {
         execution_time: new Date().toISOString(),
         tab_info: {
-          id: activeTab.id,
-          url: activeTab.url,
-          title: activeTab.title
+          id: targetTab.id,
+          url: targetTab.url,
+          title: targetTab.title
         }
       }
     };

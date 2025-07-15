@@ -283,6 +283,10 @@ class BrowserAutomation {
         case "page_scroll":
           result = await this.scrollPage(data);
           break;
+        case "ping":
+          // Health check for background tab content script readiness
+          result = { status: "ready", timestamp: Date.now(), url: window.location.href };
+          break;
         default:
           throw new Error(`Unknown action: ${action}`);
       }
