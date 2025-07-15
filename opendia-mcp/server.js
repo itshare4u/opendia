@@ -495,6 +495,9 @@ function formatToolResult(toolName, result) {
     case "element_get_state":
       return formatElementStateResult(result, metadata);
 
+    case "page_style":
+      return formatPageStyleResult(result, metadata);
+
     default:
       // Legacy tools or unknown tools
       return JSON.stringify(result, null, 2);
@@ -949,6 +952,56 @@ function formatElementStateResult(result, metadata) {
 ${JSON.stringify(metadata, null, 2)}`;
 }
 
+function formatPageStyleResult(result, metadata) {
+  const successIcon = result.success ? '✅' : '❌';
+  const statusText = result.success ? 'successfully applied' : 'failed to apply';
+  
+  let summary = `🎨 Page styling ${statusText}\n\n`;
+  
+  summary += `📄 **Operation Details:**\n`;
+  summary += `• **Mode:** ${result.mode || 'Unknown'}\n`;
+  
+  if (result.theme) {
+    summary += `• **Theme:** ${result.theme}\n`;
+  }
+  
+  if (result.applied_css !== undefined) {
+    summary += `• **CSS Applied:** ${result.applied_css} characters\n`;
+  }
+  
+  if (result.description) {
+    summary += `• **Result:** ${result.description}\n`;
+  }
+  
+  if (result.remember_enabled) {
+    summary += `• **Saved:** Style preferences saved for this domain\n`;
+  }
+  
+  if (result.effect_duration) {
+    summary += `• **Effect Duration:** ${result.effect_duration} seconds\n`;
+  }
+  
+  if (result.mood) {
+    summary += `• **Mood Applied:** "${result.mood}"\n`;
+  }
+  
+  if (result.intensity) {
+    summary += `• **Intensity:** ${result.intensity}\n`;
+  }
+  
+  if (!result.success && result.error) {
+    summary += `\n❌ **Error:** ${result.error}\n`;
+  }
+  
+  if (result.warning) {
+    summary += `\n⚠️ **Warning:** ${result.warning}\n`;
+  }
+  
+  summary += `\n💡 **Tip:** Use mode="reset" to restore original page styling`;
+  
+  return `${summary}\n\n${JSON.stringify(metadata, null, 2)}`;
+}
+
 // Enhanced fallback tools when extension is not connected
 function getFallbackTools() {
   return [
@@ -1392,6 +1445,71 @@ function getFallbackTools() {
             description: "Maximum number of links to return"
           }
         }
+      }
+    },
+    {
+      name: "page_style",
+      description: "🎨 Transform page appearance with themes, colors, fonts, and fun effects! Apply preset themes like 'dark_hacker', 'retro_80s', or create custom styles. Perfect for making boring pages fun or improving readability.",
+      inputSchema: {
+        type: "object",
+        examples: [
+          { mode: "preset", theme: "dark_hacker" },
+          { mode: "custom", background: "#000", text_color: "#00ff00", font: "monospace" },
+          { mode: "ai_mood", mood: "cozy coffee shop vibes", intensity: "strong" },
+          { mode: "effect", effect: "matrix_rain", duration: 30 }
+        ],
+        properties: {
+          mode: {
+            type: "string", 
+            enum: ["preset", "custom", "ai_mood", "effect", "reset"],
+            description: "Styling mode to use"
+          },
+          theme: {
+            type: "string",
+            enum: ["dark_hacker", "retro_80s", "rainbow_party", "minimalist_zen", "high_contrast", "cyberpunk", "pastel_dream", "newspaper"],
+            description: "Preset theme name (when mode=preset)"
+          },
+          background: { 
+            type: "string", 
+            description: "Background color/gradient" 
+          },
+          text_color: { 
+            type: "string", 
+            description: "Text color" 
+          },
+          font: { 
+            type: "string", 
+            description: "Font family" 
+          },
+          font_size: { 
+            type: "string", 
+            description: "Font size (e.g., '1.2em', '16px')" 
+          },
+          mood: { 
+            type: "string", 
+            description: "Describe desired mood/feeling (when mode=ai_mood)" 
+          },
+          intensity: { 
+            type: "string", 
+            enum: ["subtle", "medium", "strong"], 
+            default: "medium" 
+          },
+          effect: { 
+            type: "string", 
+            enum: ["matrix_rain", "floating_particles", "cursor_trail", "neon_glow", "typing_effect"] 
+          },
+          duration: { 
+            type: "number", 
+            description: "Effect duration in seconds", 
+            default: 10 
+          },
+          remember: { 
+            type: "boolean", 
+            description: "Remember this style for this website", 
+            default: false 
+          }
+        },
+        required: ["mode"]
       }
     },
   ];

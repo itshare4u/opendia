@@ -69,6 +69,13 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 - **"Monitor this webpage and notify me when the content changes"**
 - **"Automatically bookmark interesting articles I'm reading"**
 
+### 🎨 Visual Customization & Fun
+- **"Apply a cyberpunk theme to this documentation site to make it more engaging"**
+- **"Make this page dark mode with green text for late-night reading"**
+- **"Add rainbow party effects to celebrate finishing this project"**
+- **"Transform this boring form with a retro 80s theme while I fill it out"**
+- **"Use high contrast styling so I can read this better"**
+
 ## ⚡ Quick Start
 
 ### 1. Install the Browser Extension
@@ -152,7 +159,7 @@ ngrok config add-authtoken YOUR_TOKEN_HERE
 
 ## 🛠️ Capabilities
 
-OpenDia gives AI models **17 powerful browser tools**:
+OpenDia gives AI models **18 powerful browser tools**:
 
 ### 🎯 Smart Page Understanding
 - **Analyze any webpage** - AI automatically finds buttons, forms, and interactive elements
@@ -180,6 +187,13 @@ OpenDia gives AI models **17 powerful browser tools**:
 - **Natural interactions** - Mimics human behavior to avoid triggering security measures
 - **Reliable automation** - Works consistently even on sites that block typical automation tools
 
+### 🎨 Page Styling & Customization
+- **Transform any website** - Apply fun themes, custom colors, and visual effects
+- **Preset themes** - Dark hacker, retro 80s, rainbow party, minimalist zen, and more
+- **AI mood styling** - Describe a mood and get matching visual design
+- **Interactive effects** - Matrix rain, floating particles, neon glow, and cursor trails
+- **Accessibility themes** - High contrast and readable designs for better visibility
+
 ## 💬 Example Prompts to Try
 
 Once everything is set up, try asking your AI:
@@ -201,6 +215,15 @@ Once everything is set up, try asking your AI:
 
 **Personal Assistant:**
 > *"Find that GitHub repo I was looking at yesterday about React components and bookmark it for later"*
+
+**Page Styling & Fun:**
+> *"Apply a dark hacker theme to this page to make it look more interesting"*
+
+> *"Make this boring documentation page feel like a cozy coffee shop"*
+
+> *"Add some matrix rain effects to this page for 30 seconds for a cool screenshot"*
+
+> *"Transform this page with a high contrast theme for better readability"*
 
 ## 🏗️ How It Works
 

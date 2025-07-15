@@ -283,6 +283,9 @@ class BrowserAutomation {
         case "page_scroll":
           result = await this.scrollPage(data);
           break;
+        case "page_style":
+          result = await this.handlePageStyle(data);
+          break;
         case "ping":
           // Health check for background tab content script readiness
           result = { status: "ready", timestamp: Date.now(), url: window.location.href };
@@ -2507,7 +2510,375 @@ class BrowserAutomation {
       };
     }
   }
+
+  // 🎨 Page Styling System
+  async handlePageStyle(data) {
+    const { mode, theme, background, text_color, font, font_size, mood, intensity, effect, duration, remember } = data;
+    
+    // Remove existing custom styles
+    const existingStyle = document.getElementById('opendia-custom-style');
+    if (existingStyle) existingStyle.remove();
+    
+    let css = '';
+    let description = '';
+    
+    try {
+      switch (mode) {
+        case 'preset':
+          const themeData = THEME_PRESETS[theme];
+          if (!themeData) throw new Error(`Unknown theme: ${theme}`);
+          css = themeData.css;
+          description = `Applied ${themeData.name} theme`;
+          break;
+          
+        case 'custom':
+          css = this.buildCustomCSS({ background, text_color, font, font_size });
+          description = 'Applied custom styling';
+          break;
+          
+        case 'ai_mood':
+          css = this.generateMoodCSS(mood, intensity);
+          description = `Applied AI-generated style for mood: "${mood}"`;
+          break;
+          
+        case 'effect':
+          css = this.applyEffect(effect, duration);
+          description = `Applied ${effect} effect for ${duration}s`;
+          break;
+          
+        case 'reset':
+          // CSS already removed above
+          description = 'Reset page to original styling';
+          break;
+          
+        default:
+          throw new Error(`Unknown styling mode: ${mode}`);
+      }
+      
+      if (css) {
+        const styleElement = document.createElement('style');
+        styleElement.id = 'opendia-custom-style';
+        styleElement.textContent = css;
+        document.head.appendChild(styleElement);
+      }
+      
+      // Remember preference if requested
+      if (remember && mode !== 'reset') {
+        const domain = window.location.hostname;
+        chrome.storage.local.set({ [`style_${domain}`]: { mode, theme, css } });
+      }
+      
+      return {
+        success: true,
+        description,
+        applied_css: css.length,
+        mode,
+        theme: theme || 'custom',
+        remember_enabled: remember,
+        effect_duration: duration,
+        mood,
+        intensity
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        mode,
+        theme,
+        applied_css: 0
+      };
+    }
+  }
+
+  buildCustomCSS({ background, text_color, font, font_size }) {
+    let css = '';
+    
+    if (background || text_color || font || font_size) {
+      css += '* { ';
+      if (background) css += `background: ${background} !important; `;
+      if (text_color) css += `color: ${text_color} !important; `;
+      if (font) css += `font-family: ${font} !important; `;
+      if (font_size) css += `font-size: ${font_size} !important; `;
+      css += '}';
+    }
+    
+    return css;
+  }
+
+  generateMoodCSS(mood, intensity) {
+    const moodMap = {
+      'cozy coffee shop': {
+        background: '#2c1810',
+        text: '#f4e4bc', 
+        accent: '#d4af37',
+        font: 'Georgia, serif'
+      },
+      'energetic': {
+        background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+        text: '#ffffff',
+        effects: 'animation: energyPulse 1s infinite;'
+      },
+      'calm ocean': {
+        background: 'linear-gradient(to bottom, #87ceeb, #4682b4)',
+        text: '#ffffff',
+        effects: 'animation: gentleWave 4s ease-in-out infinite;'
+      },
+      'dark professional': {
+        background: '#1a1a1a',
+        text: '#e0e0e0',
+        accent: '#0066cc'
+      },
+      'warm sunset': {
+        background: 'linear-gradient(to bottom, #ff7e5f, #feb47b)',
+        text: '#ffffff'
+      }
+    };
+    
+    const style = moodMap[mood.toLowerCase()] || moodMap['cozy coffee shop'];
+    return this.buildMoodCSS(style, intensity);
+  }
+
+  buildMoodCSS(style, intensity) {
+    const opacity = intensity === 'subtle' ? '0.3' : intensity === 'medium' ? '0.6' : '0.9';
+    
+    let css = `
+      body {
+        background: ${style.background} !important;
+        color: ${style.text} !important;
+        ${style.font ? `font-family: ${style.font} !important;` : ''}
+      }
+      
+      * {
+        color: ${style.text} !important;
+      }
+      
+      a {
+        color: ${style.accent || style.text} !important;
+      }
+    `;
+    
+    if (style.effects) {
+      css += style.effects;
+    }
+    
+    // Add animation keyframes if needed
+    if (style.effects && style.effects.includes('energyPulse')) {
+      css += `
+        @keyframes energyPulse {
+          0%, 100% { filter: hue-rotate(0deg); }
+          50% { filter: hue-rotate(180deg); }
+        }
+      `;
+    }
+    
+    if (style.effects && style.effects.includes('gentleWave')) {
+      css += `
+        @keyframes gentleWave {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      `;
+    }
+    
+    return css;
+  }
+
+  applyEffect(effect, duration) {
+    const effects = {
+      matrix_rain: `
+        body::after {
+          content: ''; 
+          position: fixed; 
+          top: 0; 
+          left: 0; 
+          width: 100%; 
+          height: 100%;
+          background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="10" font-size="8" fill="%2300ff00">0</text><text y="20" font-size="8" fill="%2300ff00">1</text><text y="30" font-size="8" fill="%2300ff00">0</text><text y="40" font-size="8" fill="%2300ff00">1</text></svg>');
+          animation: matrixFall 2s linear infinite;
+          pointer-events: none; 
+          z-index: 9999; 
+          opacity: 0.7;
+        }
+        @keyframes matrixFall { 
+          from { transform: translateY(-100px); } 
+          to { transform: translateY(100vh); } 
+        }
+      `,
+      floating_particles: `
+        body::before {
+          content: '✨ 🌟 ⭐ 💫'; 
+          position: fixed; 
+          top: 0; 
+          left: 0; 
+          width: 100%; 
+          height: 100%;
+          animation: floatParticles 6s ease-in-out infinite;
+          pointer-events: none; 
+          z-index: 9999; 
+          font-size: 20px;
+        }
+        @keyframes floatParticles { 
+          0%, 100% { transform: translateY(100vh) rotate(0deg); } 
+          50% { transform: translateY(-100px) rotate(180deg); } 
+        }
+      `,
+      cursor_trail: `
+        body {
+          cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="8" fill="rgba(255,0,255,0.5)"/></svg>'), auto !important;
+        }
+      `,
+      neon_glow: `
+        * {
+          text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff !important;
+        }
+        
+        a, button {
+          box-shadow: 0 0 15px #ff00ff !important;
+        }
+      `,
+      typing_effect: `
+        * {
+          animation: typewriter 2s steps(40, end) infinite !important;
+        }
+        @keyframes typewriter {
+          from { width: 0; }
+          to { width: 100%; }
+        }
+      `
+    };
+    
+    const css = effects[effect] || '';
+    
+    // Auto-remove effect after duration
+    if (duration && duration > 0) {
+      setTimeout(() => {
+        const effectStyle = document.getElementById('opendia-custom-style');
+        if (effectStyle) effectStyle.remove();
+      }, duration * 1000);
+    }
+    
+    return css;
+  }
 }
+
+// Theme Presets Database
+const THEME_PRESETS = {
+  "dark_hacker": {
+    name: "🖤 Dark Hacker",
+    css: `
+      * { 
+        background: #0a0a0a !important; 
+        color: #00ff00 !important; 
+        font-family: 'Courier New', monospace !important;
+      }
+      a { color: #00ffff !important; }
+      body::before { 
+        content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" font-size="10" fill="%23003300">01010101</text></svg>');
+        opacity: 0.1; pointer-events: none; z-index: -1;
+      }
+    `
+  },
+  "retro_80s": {
+    name: "📼 Retro 80s", 
+    css: `
+      * { 
+        background: linear-gradient(45deg, #ff0080, #8000ff) !important;
+        color: #ffffff !important;
+        font-family: 'Arial Black', sans-serif !important;
+        text-shadow: 2px 2px 4px #000000 !important;
+      }
+      body { animation: retroPulse 2s infinite; }
+      @keyframes retroPulse { 0%, 100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(180deg); } }
+    `
+  },
+  "rainbow_party": {
+    name: "🌈 Rainbow Party",
+    css: `
+      body { 
+        background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet) !important;
+        background-size: 400% 400% !important;
+        animation: rainbowShift 3s ease infinite !important;
+      }
+      @keyframes rainbowShift { 
+        0%, 100% { background-position: 0% 50%; } 
+        50% { background-position: 100% 50%; } 
+      }
+      * { color: white !important; text-shadow: 1px 1px 2px black !important; }
+    `
+  },
+  "minimalist_zen": {
+    name: "🧘 Minimalist Zen",
+    css: `
+      * {
+        background: #f8f8f8 !important;
+        color: #333333 !important;
+        font-family: 'Georgia', serif !important;
+        line-height: 1.6 !important;
+      }
+      body { max-width: 800px; margin: 0 auto; padding: 20px; }
+    `
+  },
+  "high_contrast": {
+    name: "🔍 High Contrast",
+    css: `
+      * {
+        background: #000000 !important;
+        color: #ffffff !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+      }
+      a { color: #ffff00 !important; }
+    `
+  },
+  "cyberpunk": {
+    name: "🤖 Cyberpunk",
+    css: `
+      * {
+        background: #0d1117 !important;
+        color: #ff006e !important;
+        font-family: 'Courier New', monospace !important;
+      }
+      a { color: #00ffff !important; }
+      body {
+        background-image: 
+          linear-gradient(90deg, transparent 79px, #abced4 79px, #abced4 81px, transparent 81px),
+          linear-gradient(#eee .1em, transparent .1em);
+        background-size: 81px 1.2em;
+      }
+    `
+  },
+  "pastel_dream": {
+    name: "🌸 Pastel Dream",
+    css: `
+      * {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: #2c3e50 !important;
+        font-family: 'Comic Sans MS', cursive !important;
+      }
+      body { filter: sepia(20%) saturate(80%); }
+    `
+  },
+  "newspaper": {
+    name: "📰 Newspaper",
+    css: `
+      * {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: 'Times New Roman', serif !important;
+        line-height: 1.4 !important;
+      }
+      body { 
+        column-count: 2; 
+        column-gap: 2em; 
+        max-width: 1200px; 
+        margin: 0 auto; 
+        padding: 20px;
+      }
+    `
+  }
+};
 
 // Initialize the automation system
 const browserAutomation = new BrowserAutomation();

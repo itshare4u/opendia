@@ -766,6 +766,71 @@ function getAvailableTools() {
         }
       }
     },
+    {
+      name: "page_style",
+      description: "🎨 Transform page appearance with themes, colors, fonts, and fun effects! Apply preset themes like 'dark_hacker', 'retro_80s', or create custom styles. Perfect for making boring pages fun or improving readability.",
+      inputSchema: {
+        type: "object",
+        examples: [
+          { mode: "preset", theme: "dark_hacker" },
+          { mode: "custom", background: "#000", text_color: "#00ff00", font: "monospace" },
+          { mode: "ai_mood", mood: "cozy coffee shop vibes", intensity: "strong" },
+          { mode: "effect", effect: "matrix_rain", duration: 30 }
+        ],
+        properties: {
+          mode: {
+            type: "string", 
+            enum: ["preset", "custom", "ai_mood", "effect", "reset"],
+            description: "Styling mode to use"
+          },
+          theme: {
+            type: "string",
+            enum: ["dark_hacker", "retro_80s", "rainbow_party", "minimalist_zen", "high_contrast", "cyberpunk", "pastel_dream", "newspaper"],
+            description: "Preset theme name (when mode=preset)"
+          },
+          background: { 
+            type: "string", 
+            description: "Background color/gradient" 
+          },
+          text_color: { 
+            type: "string", 
+            description: "Text color" 
+          },
+          font: { 
+            type: "string", 
+            description: "Font family" 
+          },
+          font_size: { 
+            type: "string", 
+            description: "Font size (e.g., '1.2em', '16px')" 
+          },
+          mood: { 
+            type: "string", 
+            description: "Describe desired mood/feeling (when mode=ai_mood)" 
+          },
+          intensity: { 
+            type: "string", 
+            enum: ["subtle", "medium", "strong"], 
+            default: "medium" 
+          },
+          effect: { 
+            type: "string", 
+            enum: ["matrix_rain", "floating_particles", "cursor_trail", "neon_glow", "typing_effect"] 
+          },
+          duration: { 
+            type: "number", 
+            description: "Effect duration in seconds", 
+            default: 10 
+          },
+          remember: { 
+            type: "boolean", 
+            description: "Remember this style for this website", 
+            default: false 
+          }
+        },
+        required: ["mode"]
+      }
+    },
   ];
 }
 
@@ -839,6 +904,9 @@ async function handleMCPRequest(message) {
         break;
       case "get_page_links":
         result = await sendToContentScript('get_page_links', params, params.tab_id);
+        break;
+      case "page_style":
+        result = await sendToContentScript('page_style', params, params.tab_id);
         break;
       default:
         throw new Error(`Unknown method: ${method}`);
