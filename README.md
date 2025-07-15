@@ -85,7 +85,14 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 4. Click "Load unpacked" and select the extension folder
 
 ### 2. Connect to Your AI
-**For Claude Desktop**, add to your configuration:
+
+**Option 1: Double-click Installation (Recommended)**
+1. Download the `opendia.dxt` file from [releases](https://github.com/aaronjmars/opendia/releases)
+2. Double-click the `.dxt` file to install automatically
+3. The MCP will be added to your Claude Desktop configuration
+
+**Option 2: Manual Configuration**
+Add to your Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
