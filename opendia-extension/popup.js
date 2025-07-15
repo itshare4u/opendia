@@ -84,7 +84,7 @@ function updateStatus(connected) {
   } else {
     statusIndicator.className = "status-indicator disconnected";
     statusText.innerHTML = `Disconnected from MCP server
-      <span class="tooltip-content">Start server with: npx opendia. Auto-discovery will find the correct ports. If issues persist, try: npx opendia --kill-existing</span>`;
+      <span class="tooltip-content">Start server with: npx opendia. Auto-discovery will find the correct ports. Existing processes are automatically terminated on startup</span>`;
   }
 }
 

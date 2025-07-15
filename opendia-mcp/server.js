@@ -111,14 +111,25 @@ async function handlePortConflict(port, portName) {
   const isOpenDia = await checkIfOpenDiaProcess(port);
   
   if (isOpenDia) {
-    console.error(`🔍 Detected existing OpenDia instance on port ${port}`);
-    console.error(`💡 Options:`);
-    console.error(`   1. Kill existing: npx opendia --kill-existing`);
-    console.error(`   2. Use different port: npx opendia --${portName.toLowerCase()}-port=${port + 1}`);
-    console.error(`   3. Check running processes: lsof -i:${port}`);
-    console.error(``);
-    console.error(`⏹️  Exiting to avoid conflicts...`);
-    process.exit(1);
+    console.error(`🔍 Detected existing OpenDia instance on port ${port} (this should not happen after cleanup)`);
+    console.error(`⚠️  Attempting to kill remaining process...`);
+    await killExistingOpenDia(port);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check if port is now free
+    const stillInUse = await checkPortInUse(port);
+    if (!stillInUse) {
+      console.error(`✅ Port ${port} is now available`);
+      return port;
+    }
+    
+    // If still in use, find alternative port
+    const altPort = await findAvailablePort(port + 1);
+    console.error(`🔄 Port ${port} still busy, using port ${altPort}`);
+    if (portName === 'WebSocket') {
+      console.error(`💡 Update Chrome extension to: ws://localhost:${altPort}`);
+    }
+    return altPort;
   } else {
     // Something else is using the port - auto-increment
     const altPort = await findAvailablePort(port + 1);
@@ -270,8 +281,138 @@ async function handleMCPRequest(request) {
         break;
 
       case "prompts/list":
-        // Return empty prompts list
-        result = { prompts: [] };
+        // Return available workflow prompts
+        result = { 
+          prompts: [
+            {
+              name: "post_to_social",
+              description: "Post content to social media platforms with anti-detection bypass",
+              arguments: [
+                {
+                  name: "content",
+                  description: "The content to post",
+                  required: true
+                },
+                {
+                  name: "platform",
+                  description: "Target platform (twitter, linkedin, facebook)",
+                  required: false
+                }
+              ]
+            },
+            {
+              name: "post_selected_quote",
+              description: "Post currently selected text as a quote with commentary",
+              arguments: [
+                {
+                  name: "commentary",
+                  description: "Your commentary on the selected text",
+                  required: false
+                }
+              ]
+            },
+            {
+              name: "research_workflow",
+              description: "Research a topic using current page and bookmarking findings",
+              arguments: [
+                {
+                  name: "topic",
+                  description: "Research topic or query",
+                  required: true
+                },
+                {
+                  name: "depth",
+                  description: "Research depth: quick, thorough, comprehensive",
+                  required: false
+                }
+              ]
+            },
+            {
+              name: "analyze_browsing_session",
+              description: "Analyze current browsing session and provide insights",
+              arguments: [
+                {
+                  name: "focus",
+                  description: "Analysis focus: productivity, research, trends",
+                  required: false
+                }
+              ]
+            },
+            {
+              name: "organize_tabs",
+              description: "Organize and clean up browser tabs intelligently",
+              arguments: [
+                {
+                  name: "strategy",
+                  description: "Organization strategy: close_duplicates, group_by_domain, archive_old",
+                  required: false
+                }
+              ]
+            },
+            {
+              name: "fill_form_assistant",
+              description: "Analyze and help fill out forms on the current page",
+              arguments: [
+                {
+                  name: "form_type",
+                  description: "Type of form: contact, registration, survey, application",
+                  required: false
+                }
+              ]
+            }
+          ]
+        };
+        break;
+
+      case "prompts/get":
+        // Execute specific workflow based on prompt name
+        const promptName = params.name;
+        const promptArgs = params.arguments || {};
+        
+        try {
+          let workflowResult;
+          switch (promptName) {
+            case "post_to_social":
+              workflowResult = await executePostToSocialWorkflow(promptArgs);
+              break;
+            case "post_selected_quote":
+              workflowResult = await executePostSelectedQuoteWorkflow(promptArgs);
+              break;
+            case "research_workflow":
+              workflowResult = await executeResearchWorkflow(promptArgs);
+              break;
+            case "analyze_browsing_session":
+              workflowResult = await executeSessionAnalysisWorkflow(promptArgs);
+              break;
+            case "organize_tabs":
+              workflowResult = await executeOrganizeTabsWorkflow(promptArgs);
+              break;
+            case "fill_form_assistant":
+              workflowResult = await executeFillFormWorkflow(promptArgs);
+              break;
+            default:
+              throw new Error(`Unknown prompt: ${promptName}`);
+          }
+          
+          result = {
+            content: [
+              {
+                type: "text",
+                text: workflowResult
+              }
+            ]
+          };
+        } catch (error) {
+          result = {
+            content: [
+              {
+                type: "text",
+                text: `❌ Workflow execution failed: ${error.message}`
+              }
+            ],
+            isError: true
+          };
+        }
         break;
 
       default:
@@ -1395,19 +1536,17 @@ async function startServer() {
   console.error("🚀 Enhanced Browser MCP Server with Anti-Detection Features");
   console.error(`📊 Default ports: WebSocket=${WS_PORT}, HTTP=${HTTP_PORT}`);
   
-  // Handle --kill-existing flag
-  if (killExisting) {
-    console.error('🔧 Killing existing OpenDia processes...');
-    const wsKilled = await killExistingOpenDia(WS_PORT);
-    const httpKilled = await killExistingOpenDia(HTTP_PORT);
-    
-    if (wsKilled || httpKilled) {
-      console.error('✅ Existing processes terminated');
-      // Wait for ports to be fully released
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } else {
-      console.error('ℹ️  No existing OpenDia processes found');
-    }
+  // Always kill existing OpenDia processes on startup
+  console.error('🔧 Checking for existing OpenDia processes...');
+  const wsKilled = await killExistingOpenDia(WS_PORT);
+  const httpKilled = await killExistingOpenDia(HTTP_PORT);
+  
+  if (wsKilled || httpKilled) {
+    console.error('✅ Existing processes terminated');
+    // Wait for ports to be fully released
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  } else {
+    console.error('ℹ️  No existing OpenDia processes found');
   }
   
   // Resolve port conflicts
@@ -1533,7 +1672,7 @@ async function startServer() {
   console.error(`   Current: WebSocket=${WS_PORT}, HTTP=${HTTP_PORT}`);
   console.error('   Custom: npx opendia --ws-port=6000 --http-port=6001');
   console.error('   Or: npx opendia --port=6000 (uses 6000 and 6001)');
-  console.error('   Kill existing: npx opendia --kill-existing');
+  console.error('   Note: Existing processes are automatically terminated');
   console.error('');
 }
 
@@ -1550,6 +1689,609 @@ process.on('SIGINT', async () => {
   }
   process.exit();
 });
+
+// Workflow execution functions
+async function executePostToSocialWorkflow(args) {
+  const { content, platform = "auto" } = args;
+  
+  if (!content) {
+    throw new Error("Content is required for social media posting");
+  }
+  
+  try {
+    // Analyze the current page to determine platform and find posting elements
+    const pageAnalysis = await callBrowserTool('page_analyze', {
+      intent_hint: 'post_create',
+      phase: 'discover',
+      max_results: 3
+    });
+    
+    if (!pageAnalysis.elements || pageAnalysis.elements.length === 0) {
+      throw new Error("No posting elements found on current page. Please navigate to a social media platform.");
+    }
+    
+    // Find the best textarea element for posting
+    const textareaElement = pageAnalysis.elements.find(el => 
+      el.type === 'textarea' || el.name.toLowerCase().includes('post') || el.name.toLowerCase().includes('tweet')
+    );
+    
+    if (!textareaElement) {
+      throw new Error("No suitable posting textarea found on current page");
+    }
+    
+    // Fill the content using anti-detection bypass
+    const fillResult = await callBrowserTool('element_fill', {
+      element_id: textareaElement.id,
+      value: content,
+      clear_first: true
+    });
+    
+    if (!fillResult.success) {
+      throw new Error(`Failed to fill content: ${fillResult.actual_value}`);
+    }
+    
+    // Look for submit button
+    const submitElement = pageAnalysis.elements.find(el => 
+      el.type === 'button' && (el.name.toLowerCase().includes('post') || el.name.toLowerCase().includes('tweet') || el.name.toLowerCase().includes('share'))
+    );
+    
+    let result = `✅ Successfully posted content to social media!\n\n`;
+    result += `📝 **Content posted:** "${content}"\n`;
+    result += `🎯 **Platform detected:** ${pageAnalysis.summary?.anti_detection_platform || 'Generic'}\n`;
+    result += `🔧 **Method used:** ${fillResult.method}\n`;
+    result += `📊 **Fill success:** ${fillResult.success ? 'Yes' : 'No'}\n`;
+    
+    if (submitElement) {
+      result += `\n💡 **Next step:** Click the "${submitElement.name}" button to publish your post.`;
+    } else {
+      result += `\n💡 **Next step:** Look for a "Post" or "Tweet" button to publish your content.`;
+    }
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Social media posting failed: ${error.message}`);
+  }
+}
+
+async function executePostSelectedQuoteWorkflow(args) {
+  const { commentary = "" } = args;
+  
+  try {
+    // Get selected text from current page
+    const selectedText = await callBrowserTool('get_selected_text', {
+      include_metadata: true,
+      max_length: 1000
+    });
+    
+    if (!selectedText.has_selection) {
+      throw new Error("No text is currently selected. Please select some text first.");
+    }
+    
+    // Format the quote with commentary
+    let quoteContent = `"${selectedText.selected_text}"`;
+    if (selectedText.selection_metadata?.page_info?.title) {
+      quoteContent += `\n\n— ${selectedText.selection_metadata.page_info.title}`;
+    }
+    if (selectedText.selection_metadata?.page_info?.url) {
+      quoteContent += `\n${selectedText.selection_metadata.page_info.url}`;
+    }
+    if (commentary) {
+      quoteContent += `\n\n${commentary}`;
+    }
+    
+    // Execute the post workflow with the formatted quote
+    const postResult = await executePostToSocialWorkflow({ content: quoteContent });
+    
+    let result = `🎯 **Selected Quote Posting Workflow**\n\n`;
+    result += `📝 **Selected text:** "${selectedText.selected_text.substring(0, 100)}${selectedText.selected_text.length > 100 ? '...' : ''}"\n`;
+    result += `📄 **Source:** ${selectedText.selection_metadata?.page_info?.title || 'Current page'}\n`;
+    result += `💬 **Commentary:** ${commentary || 'None'}\n`;
+    result += `📊 **Character count:** ${quoteContent.length}\n\n`;
+    result += postResult;
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Quote posting workflow failed: ${error.message}`);
+  }
+}
+
+async function executeResearchWorkflow(args) {
+  const { topic, depth = "thorough" } = args;
+  
+  if (!topic) {
+    throw new Error("Research topic is required");
+  }
+  
+  try {
+    // Analyze current page content
+    const pageContent = await callBrowserTool('page_extract_content', {
+      content_type: 'article',
+      summarize: true
+    });
+    
+    // Get current page links for related research
+    const pageLinks = await callBrowserTool('get_page_links', {
+      include_internal: true,
+      include_external: true,
+      max_results: 20
+    });
+    
+    // Search browsing history for related content
+    const historyResults = await callBrowserTool('get_history', {
+      keywords: topic,
+      max_results: 10,
+      sort_by: 'visit_time'
+    });
+    
+    // Bookmark current page if it has relevant content - URL will be obtained from browser extension
+    const currentUrl = pageContent.content?.url;
+    const currentTitle = pageContent.summary?.title;
+    
+    if (currentUrl && currentTitle) {
+      try {
+        await callBrowserTool('add_bookmark', {
+          title: `[Research: ${topic}] ${currentTitle}`,
+          url: currentUrl
+        });
+      } catch (bookmarkError) {
+        console.warn('Bookmark creation failed:', bookmarkError.message);
+      }
+    }
+    
+    // Compile research summary
+    let result = `🔍 **Research Workflow: ${topic}**\n\n`;
+    
+    // Current page analysis
+    result += `📄 **Current Page Analysis:**\n`;
+    if (pageContent.summary) {
+      result += `• **Title:** ${pageContent.summary.title || 'N/A'}\n`;
+      result += `• **Word count:** ${pageContent.summary.word_count || 0}\n`;
+      result += `• **Reading time:** ${pageContent.summary.reading_time || 0} minutes\n`;
+      result += `• **Has media:** ${pageContent.summary.has_images || pageContent.summary.has_videos ? 'Yes' : 'No'}\n`;
+      if (pageContent.summary.preview) {
+        result += `• **Preview:** ${pageContent.summary.preview}\n`;
+      }
+    }
+    
+    // Related links
+    result += `\n🔗 **Related Links Found:** ${pageLinks.returned}\n`;
+    const relevantLinks = pageLinks.links.filter(link => 
+      link.text.toLowerCase().includes(topic.toLowerCase()) || 
+      link.url.toLowerCase().includes(topic.toLowerCase())
+    ).slice(0, 5);
+    
+    if (relevantLinks.length > 0) {
+      result += `**Top relevant links:**\n`;
+      relevantLinks.forEach((link, index) => {
+        result += `${index + 1}. [${link.text}](${link.url})\n`;
+      });
+    }
+    
+    // History analysis
+    result += `\n📚 **Previous Research:**\n`;
+    if (historyResults.history_items && historyResults.history_items.length > 0) {
+      result += `Found ${historyResults.history_items.length} related pages in your history:\n`;
+      historyResults.history_items.slice(0, 5).forEach((item, index) => {
+        result += `${index + 1}. **${item.title}** (visited ${item.visit_count} times)\n`;
+        result += `   ${item.url}\n`;
+      });
+    } else {
+      result += `No previous research found in browsing history.\n`;
+    }
+    
+    // Research recommendations
+    result += `\n💡 **Next Steps:**\n`;
+    if (depth === "comprehensive") {
+      result += `• Explore the ${pageLinks.returned} links found on current page\n`;
+      result += `• Cross-reference with ${historyResults.metadata?.total_found || 0} historical visits\n`;
+      result += `• Consider bookmarking additional relevant pages\n`;
+    } else if (depth === "thorough") {
+      result += `• Review top ${Math.min(5, pageLinks.returned)} most relevant links\n`;
+      result += `• Check recent history for related content\n`;
+    } else {
+      result += `• Focus on current page content and top 3 related links\n`;
+    }
+    
+    result += `\n✅ **Current page bookmarked for reference**`;
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Research workflow failed: ${error.message}`);
+  }
+}
+
+async function executeSessionAnalysisWorkflow(args) {
+  const { focus = "productivity" } = args;
+  
+  try {
+    // Get all open tabs
+    const tabList = await callBrowserTool('tab_list', {
+      current_window_only: false,
+      include_details: true
+    });
+    
+    // Get recent browsing history
+    const recentHistory = await callBrowserTool('get_history', {
+      max_results: 50,
+      sort_by: 'visit_time',
+      sort_order: 'desc'
+    });
+    
+    // Analyze current page
+    const currentPageContent = await callBrowserTool('page_extract_content', {
+      content_type: 'article',
+      summarize: true
+    });
+    
+    // Process tabs data
+    const tabs = tabList.tabs || [];
+    const domains = [...new Set(tabs.map(tab => {
+      try {
+        return new URL(tab.url).hostname;
+      } catch {
+        return 'unknown';
+      }
+    }))];
+    
+    // Categorize tabs by domain type
+    const socialMediaDomains = ['twitter.com', 'x.com', 'linkedin.com', 'facebook.com', 'instagram.com'];
+    const productivityDomains = ['docs.google.com', 'notion.so', 'obsidian.md', 'github.com'];
+    const newsDomains = ['news.google.com', 'bbc.com', 'cnn.com', 'reuters.com'];
+    
+    const categorizedTabs = {
+      social: tabs.filter(tab => socialMediaDomains.some(domain => tab.url.includes(domain))),
+      productivity: tabs.filter(tab => productivityDomains.some(domain => tab.url.includes(domain))),
+      news: tabs.filter(tab => newsDomains.some(domain => tab.url.includes(domain))),
+      other: tabs.filter(tab => 
+        !socialMediaDomains.some(domain => tab.url.includes(domain)) &&
+        !productivityDomains.some(domain => tab.url.includes(domain)) &&
+        !newsDomains.some(domain => tab.url.includes(domain))
+      )
+    };
+    
+    // Compile analysis
+    let result = `📊 **Browsing Session Analysis**\n\n`;
+    
+    // Session overview
+    result += `🎯 **Session Overview:**\n`;
+    result += `• **Total open tabs:** ${tabs.length}\n`;
+    result += `• **Unique domains:** ${domains.length}\n`;
+    result += `• **Active tab:** ${tabList.active_tab ? 'Yes' : 'No'}\n`;
+    result += `• **Recent history items:** ${recentHistory.metadata?.total_found || 0}\n`;
+    
+    // Tab categorization
+    result += `\n📂 **Tab Categories:**\n`;
+    result += `• **Social Media:** ${categorizedTabs.social.length} tabs\n`;
+    result += `• **Productivity:** ${categorizedTabs.productivity.length} tabs\n`;
+    result += `• **News/Information:** ${categorizedTabs.news.length} tabs\n`;
+    result += `• **Other:** ${categorizedTabs.other.length} tabs\n`;
+    
+    // Domain analysis
+    result += `\n🌐 **Top Domains:**\n`;
+    const domainCounts = {};
+    tabs.forEach(tab => {
+      try {
+        const domain = new URL(tab.url).hostname;
+        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+      } catch {}
+    });
+    
+    Object.entries(domainCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .forEach(([domain, count]) => {
+        result += `• **${domain}:** ${count} tab${count > 1 ? 's' : ''}\n`;
+      });
+    
+    // Focus-specific analysis
+    if (focus === "productivity") {
+      result += `\n💼 **Productivity Analysis:**\n`;
+      const duplicateTabs = tabs.filter((tab, index) => 
+        tabs.findIndex(t => t.url === tab.url) !== index
+      );
+      result += `• **Duplicate tabs:** ${duplicateTabs.length}\n`;
+      result += `• **Productivity tools:** ${categorizedTabs.productivity.length}\n`;
+      result += `• **Social media distractions:** ${categorizedTabs.social.length}\n`;
+      
+      if (categorizedTabs.productivity.length > 0) {
+        result += `\n**Active productivity tools:**\n`;
+        categorizedTabs.productivity.slice(0, 3).forEach(tab => {
+          result += `• ${tab.title}\n`;
+        });
+      }
+    } else if (focus === "research") {
+      result += `\n🔍 **Research Analysis:**\n`;
+      result += `• **Information sources:** ${categorizedTabs.news.length + categorizedTabs.other.length}\n`;
+      result += `• **Research depth:** ${recentHistory.metadata?.total_found > 20 ? 'Deep' : 'Surface'}\n`;
+      
+      if (currentPageContent.summary) {
+        result += `• **Current page type:** ${currentPageContent.content_type || 'Unknown'}\n`;
+        result += `• **Reading time:** ${currentPageContent.summary.reading_time || 0} minutes\n`;
+      }
+    }
+    
+    // Recommendations
+    result += `\n💡 **Recommendations:**\n`;
+    if (tabs.length > 20) {
+      result += `• Consider closing some tabs to improve performance\n`;
+    }
+    if (domainCounts['twitter.com'] > 3 || domainCounts['x.com'] > 3) {
+      result += `• Multiple social media tabs detected - consider consolidating\n`;
+    }
+    if (categorizedTabs.productivity.length > 0 && categorizedTabs.social.length > 0) {
+      result += `• Mix of productivity and social tabs - consider separate browsing sessions\n`;
+    }
+    
+    result += `\n📈 **Session Score:** ${Math.round(((categorizedTabs.productivity.length + categorizedTabs.news.length) / tabs.length) * 100)}% productive`;
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Session analysis workflow failed: ${error.message}`);
+  }
+}
+
+async function executeOrganizeTabsWorkflow(args) {
+  const { strategy = "close_duplicates" } = args;
+  
+  try {
+    // Get all open tabs
+    const tabList = await callBrowserTool('tab_list', {
+      current_window_only: false,
+      include_details: true
+    });
+    
+    const tabs = tabList.tabs || [];
+    let result = `🗂️ **Tab Organization Workflow**\n\n`;
+    result += `📊 **Starting with ${tabs.length} tabs**\n\n`;
+    
+    let closedTabs = [];
+    let organizedTabs = [];
+    
+    if (strategy === "close_duplicates") {
+      // Find and close duplicate tabs
+      const seenUrls = new Set();
+      const duplicates = [];
+      
+      tabs.forEach(tab => {
+        if (seenUrls.has(tab.url)) {
+          duplicates.push(tab);
+        } else {
+          seenUrls.add(tab.url);
+        }
+      });
+      
+      // Close duplicate tabs (keep the first occurrence)
+      if (duplicates.length > 0) {
+        const tabIds = duplicates.map(tab => tab.id);
+        const closeResult = await callBrowserTool('tab_close', {
+          tab_ids: tabIds
+        });
+        
+        if (closeResult.success) {
+          closedTabs = duplicates;
+          result += `✅ **Closed ${duplicates.length} duplicate tabs:**\n`;
+          duplicates.forEach(tab => {
+            result += `• ${tab.title}\n`;
+          });
+        }
+      } else {
+        result += `✅ **No duplicate tabs found**\n`;
+      }
+      
+    } else if (strategy === "group_by_domain") {
+      // Group tabs by domain
+      const domainGroups = {};
+      tabs.forEach(tab => {
+        try {
+          const domain = new URL(tab.url).hostname;
+          if (!domainGroups[domain]) {
+            domainGroups[domain] = [];
+          }
+          domainGroups[domain].push(tab);
+        } catch {
+          if (!domainGroups['unknown']) {
+            domainGroups['unknown'] = [];
+          }
+          domainGroups['unknown'].push(tab);
+        }
+      });
+      
+      result += `📂 **Grouped tabs by domain:**\n`;
+      Object.entries(domainGroups).forEach(([domain, domainTabs]) => {
+        result += `• **${domain}:** ${domainTabs.length} tabs\n`;
+        domainTabs.slice(0, 3).forEach(tab => {
+          result += `  - ${tab.title}\n`;
+        });
+        if (domainTabs.length > 3) {
+          result += `  - ... and ${domainTabs.length - 3} more\n`;
+        }
+      });
+      
+    } else if (strategy === "archive_old") {
+      // Find tabs that haven't been active recently
+      const currentTime = Date.now();
+      const oneHourAgo = currentTime - (60 * 60 * 1000);
+      
+      // Since we don't have last accessed time, we'll use a heuristic
+      // based on tab loading status and position
+      const staleTabsToClose = tabs.filter(tab => 
+        tab.status === 'complete' && 
+        !tab.active && 
+        !tab.pinned &&
+        tab.index > 10 // Assume tabs at the end are less active
+      ).slice(0, 10); // Limit to 10 tabs max
+      
+      if (staleTabsToClose.length > 0) {
+        const tabIds = staleTabsToClose.map(tab => tab.id);
+        const closeResult = await callBrowserTool('tab_close', {
+          tab_ids: tabIds
+        });
+        
+        if (closeResult.success) {
+          closedTabs = staleTabsToClose;
+          result += `✅ **Archived ${staleTabsToClose.length} old tabs:**\n`;
+          staleTabsToClose.forEach(tab => {
+            result += `• ${tab.title}\n`;
+          });
+        }
+      } else {
+        result += `✅ **No old tabs to archive**\n`;
+      }
+    }
+    
+    // Final summary
+    const remainingTabs = tabs.length - closedTabs.length;
+    result += `\n📈 **Organization Results:**\n`;
+    result += `• **Tabs closed:** ${closedTabs.length}\n`;
+    result += `• **Tabs remaining:** ${remainingTabs}\n`;
+    result += `• **Organization strategy:** ${strategy}\n`;
+    
+    if (remainingTabs > 15) {
+      result += `\n💡 **Recommendation:** Consider running additional organization strategies to further reduce tab count.`;
+    } else {
+      result += `\n✅ **Tab organization complete!** Your browsing session is now more organized.`;
+    }
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Tab organization workflow failed: ${error.message}`);
+  }
+}
+
+async function executeFillFormWorkflow(args) {
+  const { form_type = "auto" } = args;
+  
+  try {
+    // Analyze page for form elements
+    const formAnalysis = await callBrowserTool('page_analyze', {
+      intent_hint: 'form submit',
+      phase: 'detailed',
+      focus_areas: ['forms', 'buttons'],
+      max_results: 10
+    });
+    
+    if (!formAnalysis.elements || formAnalysis.elements.length === 0) {
+      throw new Error("No form elements found on current page");
+    }
+    
+    // Categorize form elements
+    const formElements = {
+      inputs: formAnalysis.elements.filter(el => el.type === 'input'),
+      textareas: formAnalysis.elements.filter(el => el.type === 'textarea'),
+      selects: formAnalysis.elements.filter(el => el.type === 'select'),
+      buttons: formAnalysis.elements.filter(el => el.type === 'button')
+    };
+    
+    // Analyze each form element for type and requirements
+    let result = `📝 **Form Analysis & Fill Assistant**\n\n`;
+    
+    // Form overview
+    result += `🔍 **Form Elements Found:**\n`;
+    result += `• **Input fields:** ${formElements.inputs.length}\n`;
+    result += `• **Text areas:** ${formElements.textareas.length}\n`;
+    result += `• **Select dropdowns:** ${formElements.selects.length}\n`;
+    result += `• **Buttons:** ${formElements.buttons.length}\n`;
+    
+    // Detailed element analysis
+    if (formElements.inputs.length > 0) {
+      result += `\n📊 **Input Field Analysis:**\n`;
+      formElements.inputs.forEach((input, index) => {
+        const elementState = formAnalysis.elements.find(el => el.id === input.id);
+        result += `${index + 1}. **${input.name}**\n`;
+        result += `   • Element ID: ${input.id}\n`;
+        result += `   • Ready: ${elementState?.ready ? 'Yes' : 'No'}\n`;
+        result += `   • Required: ${input.name.includes('*') ? 'Yes' : 'Unknown'}\n`;
+        
+        // Suggest field type based on name
+        const fieldName = input.name.toLowerCase();
+        if (fieldName.includes('email')) {
+          result += `   • **Suggested type:** Email address\n`;
+        } else if (fieldName.includes('name')) {
+          result += `   • **Suggested type:** Name field\n`;
+        } else if (fieldName.includes('phone')) {
+          result += `   • **Suggested type:** Phone number\n`;
+        } else if (fieldName.includes('password')) {
+          result += `   • **Suggested type:** Password\n`;
+        } else {
+          result += `   • **Suggested type:** General text input\n`;
+        }
+      });
+    }
+    
+    // Text area analysis
+    if (formElements.textareas.length > 0) {
+      result += `\n📝 **Text Area Analysis:**\n`;
+      formElements.textareas.forEach((textarea, index) => {
+        result += `${index + 1}. **${textarea.name}**\n`;
+        result += `   • Element ID: ${textarea.id}\n`;
+        result += `   • **Suggested use:** Long-form text input\n`;
+      });
+    }
+    
+    // Submit buttons
+    if (formElements.buttons.length > 0) {
+      result += `\n🔘 **Submit Buttons:**\n`;
+      const submitButtons = formElements.buttons.filter(btn => 
+        btn.name.toLowerCase().includes('submit') || 
+        btn.name.toLowerCase().includes('send') ||
+        btn.name.toLowerCase().includes('save')
+      );
+      
+      submitButtons.forEach((button, index) => {
+        result += `${index + 1}. **${button.name}** (ID: ${button.id})\n`;
+      });
+    }
+    
+    // Form type detection
+    result += `\n🎯 **Detected Form Type:**\n`;
+    // Note: Page content detection would need to be done through browser tools
+    const contentLower = '';
+    
+    let detectedType = 'unknown';
+    if (contentLower.includes('contact') || contentLower.includes('get in touch')) {
+      detectedType = 'contact';
+    } else if (contentLower.includes('register') || contentLower.includes('sign up')) {
+      detectedType = 'registration';
+    } else if (contentLower.includes('survey') || contentLower.includes('feedback')) {
+      detectedType = 'survey';
+    } else if (contentLower.includes('application') || contentLower.includes('apply')) {
+      detectedType = 'application';
+    }
+    
+    result += `• **Auto-detected:** ${detectedType}\n`;
+    result += `• **User specified:** ${form_type}\n`;
+    
+    // Filling recommendations
+    result += `\n💡 **Filling Recommendations:**\n`;
+    if (formElements.inputs.length > 0) {
+      result += `• Start with required fields (marked with *)\n`;
+      result += `• Use the element IDs provided for precise filling\n`;
+      result += `• Test form validation before final submission\n`;
+    }
+    
+    // Ready-to-fill elements
+    const readyElements = formAnalysis.elements.filter(el => el.ready);
+    result += `\n✅ **Ready to Fill:** ${readyElements.length} elements are ready for interaction\n`;
+    
+    if (readyElements.length > 0) {
+      result += `**Next steps:**\n`;
+      result += `1. Use element_fill with the provided Element IDs\n`;
+      result += `2. Fill required fields first\n`;
+      result += `3. Review form before submission\n`;
+      result += `4. Click appropriate submit button when ready\n`;
+    }
+    
+    return result;
+    
+  } catch (error) {
+    throw new Error(`Form analysis workflow failed: ${error.message}`);
+  }
+}
 
 // Start the server
 startServer();

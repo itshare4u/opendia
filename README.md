@@ -109,7 +109,7 @@ npx opendia --port=6000              # Uses 6000 (WebSocket) + 6001 (HTTP)
 npx opendia --ws-port=5555 --http-port=5556  # Specify individually
 
 # Handle port conflicts  
-npx opendia --kill-existing          # Safely terminate existing OpenDia processes
+# Note: Existing OpenDia processes are automatically terminated on startup
 ```
 
 ### Auto-Tunnel Mode
