@@ -5,6 +5,18 @@ let reconnectInterval = null;
 let reconnectAttempts = 0;
 let lastKnownPorts = { websocket: 5555, http: 5556 }; // Cache for port discovery
 
+// Safety Mode configuration
+let safetyModeEnabled = false;
+const WRITE_EDIT_TOOLS = [
+  'element_click',
+  'element_fill'
+];
+
+// Load safety mode state on startup
+chrome.storage.local.get(['safetyMode'], (result) => {
+  safetyModeEnabled = result.safetyMode || false;
+});
+
 // Port discovery function
 async function discoverServerPorts() {
   // Try common HTTP ports to find the server
@@ -528,6 +540,11 @@ async function handleMCPRequest(message) {
   const { id, method, params } = message;
 
   try {
+    // Safety Mode check: Block write/edit tools if safety mode is enabled
+    if (safetyModeEnabled && WRITE_EDIT_TOOLS.includes(method)) {
+      throw new Error(`🛡️ Safety Mode is enabled. This tool (${method}) is blocked to prevent page modifications. To disable Safety Mode, open the OpenDia extension popup and toggle off "Safety Mode".`);
+    }
+
     let result;
 
     switch (method) {
@@ -1188,6 +1205,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       current: lastKnownPorts,
       websocketUrl: MCP_SERVER_URL
     });
+  } else if (request.action === "setSafetyMode") {
+    safetyModeEnabled = request.enabled;
+    console.log(`🛡️ Safety Mode ${safetyModeEnabled ? 'ENABLED' : 'DISABLED'}`);
+    sendResponse({ success: true });
   } else if (request.action === "test") {
     if (mcpSocket && mcpSocket.readyState === WebSocket.OPEN) {
       mcpSocket.send(JSON.stringify({ type: "test", timestamp: Date.now() }));

@@ -100,6 +100,29 @@ document.getElementById("reconnectBtn").addEventListener("click", () => {
 });
 
 
+// Safety Mode Management
+const safetyModeToggle = document.getElementById("safetyMode");
+
+// Load safety mode state from storage
+chrome.storage.local.get(['safetyMode'], (result) => {
+  const safetyEnabled = result.safetyMode || false; // Default to false (safety off)
+  safetyModeToggle.checked = safetyEnabled;
+});
+
+// Handle safety mode toggle changes
+safetyModeToggle.addEventListener('change', () => {
+  const safetyEnabled = safetyModeToggle.checked;
+  
+  // Save to storage
+  chrome.storage.local.set({ safetyMode: safetyEnabled });
+  
+  // Notify background script
+  chrome.runtime.sendMessage({ 
+    action: "setSafetyMode", 
+    enabled: safetyEnabled 
+  });
+});
+
 // Listen for updates from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "statusUpdate") {

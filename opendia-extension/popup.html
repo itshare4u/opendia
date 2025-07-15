@@ -236,6 +236,80 @@
       button:active {
         transform: translateY(0);
       }
+
+      .safety-mode {
+        background: rgba(255, 255, 255, 0.6);
+        padding: 16px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .safety-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .safety-label {
+        color: #374151;
+        font-weight: 600;
+        font-size: 0.875rem;
+      }
+
+      .safety-toggle {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+
+      .safety-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .safety-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e5e7eb;
+        transition: 0.3s;
+        border-radius: 24px;
+        border: 1px solid rgba(0, 129, 247, 0.2);
+      }
+
+      .safety-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      input:checked + .safety-slider {
+        background: linear-gradient(135deg, #0081F7, #1d4ed8);
+        border-color: rgba(0, 129, 247, 0.4);
+      }
+
+      input:checked + .safety-slider:before {
+        transform: translateX(26px);
+      }
+
+      .safety-slider:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
     </style>
   </head>
   <body>
@@ -274,6 +348,21 @@
       <div class="info-row">
         <span class="info-label">Current Page</span>
         <span class="info-value" id="currentPage">Loading...</span>
+      </div>
+    </div>
+
+    <div class="safety-mode">
+      <div class="safety-row">
+        <span class="safety-label tooltip">
+          Safety Mode
+          <span class="tooltip-content">
+            When enabled, blocks write/edit tools: element_click, element_fill
+          </span>
+        </span>
+        <label class="safety-toggle">
+          <input type="checkbox" id="safetyMode">
+          <span class="safety-slider"></span>
+        </label>
       </div>
     </div>
 
