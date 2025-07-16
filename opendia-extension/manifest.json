@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "OpenDia",
-  "version": "1.0.5",
-  "description": "Browser automation through Model Context Protocol",
+  "version": "1.0.6",
+  "description": "Connect your browser to AI models",
   "icons": {
     "16": "icon-16.png",
     "32": "icon-32.png",

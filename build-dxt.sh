@@ -34,7 +34,7 @@ cp opendia-mcp/server.js dist/opendia-dxt/
 cat > dist/opendia-dxt/package.json << 'EOF'
 {
   "name": "opendia",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "🎯 OpenDia - The open alternative to Dia. Connect your browser to AI models with anti-detection bypass for Twitter/X, LinkedIn, Facebook",
   "main": "server.js",
   "scripts": {
@@ -47,6 +47,7 @@ cat > dist/opendia-dxt/package.json << 'EOF'
     "ai",
     "claude",
     "chrome",
+    "firefox",
     "extension",
     "twitter",
     "linkedin", 
@@ -115,7 +116,7 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
   "dxt_version": "0.1",
   "name": "opendia",
   "display_name": "OpenDia - Browser Automation", 
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "🎯 OpenDia - The open alternative to Dia. Connect your browser to AI models with anti-detection bypass for Twitter/X, LinkedIn, Facebook + universal automation",
   "author": {
     "name": "Aaron Elijah Mars",
@@ -124,7 +125,7 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
   },
   "homepage": "https://github.com/aaronjmars/opendia",
   "license": "MIT", 
-  "keywords": ["browser", "automation", "mcp", "ai", "claude", "chrome", "extension", "twitter", "linkedin", "facebook", "anti-detection"],
+  "keywords": ["browser", "automation", "mcp", "ai", "claude", "chrome", "firefox", "extension", "twitter", "linkedin", "facebook", "anti-detection"],
   "icon": "icon.png",
   "icons": {
     "128": "icon.png"
@@ -150,7 +151,7 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
     "ws_port": {
       "type": "number",
       "title": "WebSocket Port",
-      "description": "Port for Chrome extension connection",
+      "description": "Port for Chrome/Firefox extension connection",
       "default": 5555,
       "minimum": 1024,
       "maximum": 65535
@@ -267,10 +268,10 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
   },
   
   "requirements": {
-    "chrome_extension": {
+    "browser_extension": {
       "name": "OpenDia Browser Extension",
-      "description": "Required Chrome extension for browser automation by Aaron Elijah Mars",
-      "version": "1.0.5",
+      "description": "Required Chrome/Firefox extension for browser automation by Aaron Elijah Mars",
+      "version": "1.0.6",
       "auto_install": false
     }
   }
@@ -292,9 +293,11 @@ cp LICENSE dist/opendia-dxt/ 2>/dev/null || echo "⚠️  LICENSE not found, ski
 
 # Create extension installation guide
 cat > dist/opendia-dxt/EXTENSION_INSTALL.md << 'EOF'
-# OpenDia Chrome Extension Installation
+# OpenDia Browser Extension Installation
 
 ## Quick Setup
+
+### For Chrome/Chromium Browsers
 
 1. **Enable Developer Mode**
    - Go to `chrome://extensions/`
@@ -305,13 +308,25 @@ cat > dist/opendia-dxt/EXTENSION_INSTALL.md << 'EOF'
    - Select the `extension/` folder from this DXT package
    - Extension should appear in your extensions list
 
-3. **Verify Connection**
-   - Click the OpenDia extension icon
-   - Should show "Connected to MCP server"
-   - Green status indicator means ready to use
+### For Firefox
+
+1. **Load Temporary Add-on**
+   - Go to `about:debugging#/runtime/this-firefox`
+   - Click "Load Temporary Add-on..."
+   - Select the `manifest-firefox.json` file from the `extension/` folder
+
+> **Note**: Firefox extensions are loaded as temporary add-ons and will be removed when Firefox restarts.
+
+## Verify Connection
+
+- Click the OpenDia extension icon
+- Should show "Connected to MCP server"
+- Green status indicator means ready to use
 
 ## Supported Browsers
-- Google Chrome, Arc Browser, Microsoft Edge, Brave Browser, Opera
+- Mozilla Firefox (Manifest V2)
+- Google Chrome (Manifest V3)
+- Arc Browser, Microsoft Edge, Brave Browser, Opera
 - Any Chromium-based browser
 
 ## Features
@@ -375,6 +390,6 @@ echo ""
 echo "🚀 Installation:"
 echo "1. Double-click the .dxt file"
 echo "2. Or: Claude Desktop Settings → Extensions → Install Extension"
-echo "3. Install Chrome extension from extension/ folder"
+echo "3. Install Chrome/Firefox extension from extension/ folder"
 echo ""
 echo "🎯 Features ready: Anti-detection bypass + universal automation"

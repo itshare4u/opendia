@@ -1,7 +1,7 @@
 # OpenDia <img src="opendia-extension/icon-128.png" alt="OpenDia" width="32" height="32">
 
 **The open alternative to Dia**  
-Connect your browser to AI models. No browser switching needed—works seamlessly with any Chromium browser including Chrome & Arc.
+Connect your browser to AI models. No browser switching needed—works seamlessly with Chrome, Firefox, and any Chromium browser.
 
 [![npm version](https://img.shields.io/npm/v/opendia)](https://www.npmjs.com/package/opendia)
 [![GitHub release](https://img.shields.io/github/release/aaronjmars/opendia.svg)](https://github.com/aaronjmars/opendia/releases/latest)
@@ -31,8 +31,9 @@ OpenDia lets AI models control your browser automatically. **The key advantage? 
 
 ## 🌐 Browser Support
 
-Works with **any Chromium-based browser**:
-- ✅ **Google Chrome**
+Works with **Chrome, Firefox, and any Chromium-based browser**:
+- ✅ **Mozilla Firefox** (Manifest V2)
+- ✅ **Google Chrome** (Manifest V3)
 - ✅ **Arc** 
 - ✅ **Microsoft Edge**
 - ✅ **Brave**
@@ -79,10 +80,22 @@ Perfect for **Cursor users** who want to automate their local testing and develo
 ## ⚡ Quick Start
 
 ### 1. Install the Browser Extension
-1. Download from [releases](https://github.com/aaronjmars/opendia/releases)
-2. Go to `chrome://extensions/` (or your browser's extension page)
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the extension folder
+
+**For Chrome/Chromium browsers:**
+1. Download `opendia-chrome-1.0.6.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
+2. Extract the zip file to a folder
+3. Go to `chrome://extensions/` (or your browser's extension page)
+4. Enable "Developer mode"
+5. Click "Load unpacked" and select the extracted folder
+
+**For Firefox:**
+1. Download `opendia-firefox-1.0.6.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
+2. Extract the zip file to a folder
+3. Go to `about:debugging#/runtime/this-firefox`
+4. Click "Load Temporary Add-on..."
+5. Select the `manifest.json` file from the extracted folder
+
+> **Note**: Firefox extensions are loaded as temporary add-ons and will be removed when Firefox restarts. This is a Firefox limitation for unsigned extensions.
 
 ### 2. Connect to Your AI
 
@@ -272,7 +285,8 @@ npm install
 npm start
 
 # Load extension in your browser  
-# Go to chrome://extensions/ → Developer mode → Load unpacked: ./opendia-extension
+# Chrome: Go to chrome://extensions/ → Developer mode → Load unpacked: ./opendia-extension/dist/chrome
+# Firefox: Go to about:debugging#/runtime/this-firefox → Load Temporary Add-on → ./opendia-extension/dist/firefox/manifest.json
 # Extension will auto-connect to server on localhost:5555
 ```
 

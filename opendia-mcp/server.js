@@ -127,7 +127,7 @@ async function handlePortConflict(port, portName) {
     const altPort = await findAvailablePort(port + 1);
     console.error(`🔄 Port ${port} still busy, using port ${altPort}`);
     if (portName === 'WebSocket') {
-      console.error(`💡 Update Chrome extension to: ws://localhost:${altPort}`);
+      console.error(`💡 Update Chrome/Firefox extension to: ws://localhost:${altPort}`);
     }
     return altPort;
   } else {
@@ -135,7 +135,7 @@ async function handlePortConflict(port, portName) {
     const altPort = await findAvailablePort(port + 1);
     console.error(`🔄 ${portName} port ${port} busy (non-OpenDia), using port ${altPort}`);
     if (portName === 'WebSocket') {
-      console.error(`💡 Update Chrome extension to: ws://localhost:${altPort}`);
+      console.error(`💡 Update Chrome/Firefox extension to: ws://localhost:${altPort}`);
     }
     return altPort;
   }
@@ -146,7 +146,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// WebSocket server for Chrome Extension (will be initialized after port conflict resolution)
+// WebSocket server for Chrome/Firefox Extension (will be initialized after port conflict resolution)
 let wss = null;
 let chromeExtensionSocket = null;
 let availableTools = [];
@@ -236,7 +236,7 @@ async function handleMCPRequest(request) {
             content: [
               {
                 type: "text",
-                text: "❌ Chrome Extension not connected. Please install and activate the browser extension, then try again.\n\nSetup instructions:\n1. Go to chrome://extensions/\n2. Enable Developer mode\n3. Click 'Load unpacked' and select the extension folder\n4. Ensure the extension is active\n\n🎯 Features: Anti-detection bypass for Twitter/X, LinkedIn, Facebook + universal automation",
+                text: "❌ Browser Extension not connected. Please install and activate the browser extension, then try again.\n\nSetup instructions:\n\nFor Chrome: \n1. Go to chrome://extensions/\n2. Enable Developer mode\n3. Click 'Load unpacked' and select the Chrome extension folder\n\nFor Firefox:\n1. Go to about:debugging#/runtime/this-firefox\n2. Click 'Load Temporary Add-on...'\n3. Select the manifest-firefox.json file\n\n🎯 Features: Anti-detection bypass for Twitter/X, LinkedIn, Facebook + universal automation",
               },
             ],
             isError: true,
@@ -1515,14 +1515,14 @@ function getFallbackTools() {
   ];
 }
 
-// Call browser tool through Chrome Extension
+// Call browser tool through Chrome/Firefox Extension
 async function callBrowserTool(toolName, args) {
   if (
     !chromeExtensionSocket ||
     chromeExtensionSocket.readyState !== WebSocket.OPEN
   ) {
     throw new Error(
-      "Chrome Extension not connected. Make sure the extension is installed and active."
+      "Browser Extension not connected. Make sure the extension is installed and active."
     );
   }
 
@@ -1549,7 +1549,7 @@ async function callBrowserTool(toolName, args) {
   });
 }
 
-// Handle tool responses from Chrome Extension
+// Handle tool responses from Chrome/Firefox Extension
 function handleToolResponse(message) {
   const pending = pendingCalls.get(message.id);
   if (pending) {
@@ -1565,7 +1565,7 @@ function handleToolResponse(message) {
 // Setup WebSocket connection handlers
 function setupWebSocketHandlers() {
   wss.on("connection", (ws) => {
-    console.error("Chrome Extension connected");
+    console.error("Browser Extension connected");
     chromeExtensionSocket = ws;
 
     // Set up ping/pong for keepalive
@@ -1602,7 +1602,7 @@ function setupWebSocketHandlers() {
     });
 
     ws.on("close", () => {
-      console.error("Chrome Extension disconnected");
+      console.error("Browser Extension disconnected");
       chromeExtensionSocket = null;
       availableTools = []; // Clear tools when extension disconnects
       clearInterval(pingInterval);
@@ -1732,7 +1732,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ADD: Port discovery endpoint for Chrome extension
+// ADD: Port discovery endpoint for Chrome/Firefox extension
 app.get('/ports', (req, res) => {
   res.json({
     websocket: WS_PORT,
@@ -1782,7 +1782,7 @@ async function startServer() {
   // Start HTTP server
   const httpServer = app.listen(HTTP_PORT, () => {
     console.error(`🌐 HTTP/SSE server running on port ${HTTP_PORT}`);
-    console.error(`🔌 Chrome Extension connected on ws://localhost:${WS_PORT}`);
+    console.error(`🔌 Browser Extension connected on ws://localhost:${WS_PORT}`);
     console.error("🎯 Features: Anti-detection bypass + intelligent automation");
   });
 
