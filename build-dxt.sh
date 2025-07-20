@@ -34,7 +34,7 @@ cp opendia-mcp/server.js dist/opendia-dxt/
 cat > dist/opendia-dxt/package.json << 'EOF'
 {
   "name": "opendia",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "🎯 OpenDia - The open alternative to Dia. Connect your browser to AI models with anti-detection bypass for Twitter/X, LinkedIn, Facebook",
   "main": "server.js",
   "scripts": {
@@ -116,7 +116,7 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
   "dxt_version": "0.1",
   "name": "opendia",
   "display_name": "OpenDia - Browser Automation", 
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "🎯 OpenDia - The open alternative to Dia. Connect your browser to AI models with anti-detection bypass for Twitter/X, LinkedIn, Facebook + universal automation",
   "author": {
     "name": "Aaron Elijah Mars",
@@ -271,7 +271,7 @@ cat > dist/opendia-dxt/manifest.json << 'EOF'
     "browser_extension": {
       "name": "OpenDia Browser Extension",
       "description": "Required Chrome/Firefox extension for browser automation by Aaron Elijah Mars",
-      "version": "1.0.6",
+      "version": "1.1.0",
       "auto_install": false
     }
   }
@@ -295,9 +295,21 @@ cp LICENSE dist/opendia-dxt/ 2>/dev/null || echo "⚠️  LICENSE not found, ski
 cat > dist/opendia-dxt/EXTENSION_INSTALL.md << 'EOF'
 # OpenDia Browser Extension Installation
 
-## Quick Setup
+**🔗 Official Repository:** https://github.com/aaronjmars/opendia
 
-### For Chrome/Chromium Browsers
+## Complete Installation Guide
+
+### Step 1: Install the DXT Package (Already Done!)
+✅ You've successfully installed the OpenDia DXT package in Claude Desktop
+
+### Step 2: Install Browser Extension
+
+**📦 Get Latest Extension:**
+Download the latest extension from: https://github.com/aaronjmars/opendia/releases
+
+**Or use the included extension in this DXT package:**
+
+#### For Chrome/Chromium Browsers
 
 1. **Enable Developer Mode**
    - Go to `chrome://extensions/`
@@ -306,37 +318,57 @@ cat > dist/opendia-dxt/EXTENSION_INSTALL.md << 'EOF'
 2. **Install Extension**
    - Click "Load unpacked"
    - Select the `extension/` folder from this DXT package
-   - Extension should appear in your extensions list
+   - Extension should appear in your extensions list with OpenDia icon
 
-### For Firefox
+#### For Firefox
 
 1. **Load Temporary Add-on**
    - Go to `about:debugging#/runtime/this-firefox`
    - Click "Load Temporary Add-on..."
    - Select the `manifest-firefox.json` file from the `extension/` folder
 
-> **Note**: Firefox extensions are loaded as temporary add-ons and will be removed when Firefox restarts.
+> **Firefox Note**: Extensions are loaded as temporary add-ons and will be removed when Firefox restarts. For permanent installation, use the signed extension from GitHub releases.
 
-## Verify Connection
+### Step 3: Verify Everything Works
 
-- Click the OpenDia extension icon
-- Should show "Connected to MCP server"
-- Green status indicator means ready to use
+1. **Check Extension Status**
+   - Click the OpenDia extension icon in your browser
+   - Should show "Connected to MCP server"
+   - Green status indicator means ready to use
+
+2. **Test in Claude Desktop**
+   - Ask Claude: "List my open browser tabs"
+   - Should return your current tabs if working correctly
 
 ## Supported Browsers
-- Mozilla Firefox (Manifest V2)
-- Google Chrome (Manifest V3)
-- Arc Browser, Microsoft Edge, Brave Browser, Opera
-- Any Chromium-based browser
+- ✅ **Mozilla Firefox** (Manifest V2)
+- ✅ **Google Chrome** (Manifest V3)
+- ✅ **Arc Browser, Microsoft Edge, Brave Browser, Opera**
+- ✅ **Any Chromium-based browser**
 
-## Features
-🎯 Anti-detection bypass for Twitter/X, LinkedIn, Facebook
-📱 Smart automation and page analysis
-🔧 Form filling with enhanced compatibility
-📊 Multi-tab workflows and background operations
-🎨 Page styling and visual customization
+## Key Features
+🎯 **Anti-detection bypass** for Twitter/X, LinkedIn, Facebook
+📱 **Smart automation** and intelligent page analysis
+🔧 **Form filling** with enhanced compatibility
+📊 **Multi-tab workflows** and background operations
+🎨 **Page styling** and visual customization
+🔒 **Privacy-first** - everything runs locally
 
-For more help, visit: https://github.com/aaronjmars/opendia
+## Getting Help
+
+- **📖 Full Documentation:** https://github.com/aaronjmars/opendia
+- **🐛 Report Issues:** https://github.com/aaronjmars/opendia/issues
+- **💬 Discussions:** https://github.com/aaronjmars/opendia/discussions
+
+## What's Next?
+
+Try these example prompts in Claude Desktop:
+- "List my open browser tabs"
+- "Analyze the content of my current tab"
+- "Apply a dark theme to this webpage"
+- "Extract the main article text from this page"
+
+**🚀 Ready to supercharge your browser with AI!**
 EOF
 
 # Verify structure before zipping

@@ -358,7 +358,7 @@ async function getTabContentScriptStatus(tabId) {
     }
     
     const response = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => resolve(null), 1000);
+      const timeout = setTimeout(() => resolve(null), 3000); // Increase to 3 seconds
       browser.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
         clearTimeout(timeout);
         resolve(response);
@@ -382,12 +382,12 @@ function getAvailableTools() {
     /*
     🎯 BACKGROUND TAB WORKFLOW GUIDE:
     
-    1. DISCOVER TABS: Use tab_list with check_content_script=true to see all tabs and their IDs
+    1. DISCOVER TABS: Use tab_list with check_content_script=false to see all tabs and their IDs
     2. TARGET SPECIFIC TABS: Add tab_id parameter to any tool to work on background tabs
     3. MULTI-TAB OPERATIONS: Process multiple tabs without switching between them
     
     Example Multi-Tab Workflow:
-    - tab_list({check_content_script: true}) → Get tab IDs and readiness status
+    - tab_list({check_content_script: false}) → Get tab IDs quickly
     - page_analyze({intent_hint: "article", tab_id: 12345}) → Analyze background research tab
     - page_extract_content({content_type: "article", tab_id: 12345}) → Extract content without switching
     - get_selected_text({tab_id: 67890}) → Get quotes from another background tab
@@ -689,8 +689,8 @@ function getAvailableTools() {
       inputSchema: {
         type: "object",
         examples: [
-          { check_content_script: true },  // RECOMMENDED: Check which tabs are ready for background operations
-          { current_window_only: false, check_content_script: true }  // Check all tabs across windows
+          { check_content_script: false },  // RECOMMENDED: Default false to avoid timeouts
+          { current_window_only: false, check_content_script: false }  // Get all tabs across windows
         ],
         properties: {
           current_window_only: {
