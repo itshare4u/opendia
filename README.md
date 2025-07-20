@@ -1,7 +1,9 @@
 # OpenDia <img src="opendia-extension/icons/icon-128.png" alt="OpenDia" width="32" height="32">
 
-**The open alternative to Dia**  
-Connect your browser to AI models. No browser switching needed—works seamlessly with Chrome, Firefox, and any Chromium browser.
+**The open alternative to Dia / Perplexity Comet**  
+Connect your browser to AI models. 
+No browser switching needed—works seamlessly with Chrome, Firefox, and any Chromium browser. Private, local-first & MCP focused.
+If you are not technical / never used MCPs before, we recommend using **[Perplexity Comet](https://perplexity.ai/pro?referral_code=SOZRX0OI)**.
 
 [![npm version](https://img.shields.io/npm/v/opendia)](https://www.npmjs.com/package/opendia)
 [![GitHub release](https://img.shields.io/github/release/aaronjmars/opendia.svg)](https://github.com/aaronjmars/opendia/releases/latest)
@@ -32,15 +34,15 @@ OpenDia lets AI models control your browser automatically. **The key advantage? 
 ## 🌐 Browser Support
 
 Works with **Chrome, Firefox, and any Chromium-based browser**:
-- ✅ **Mozilla Firefox** (Manifest V2)
-- ✅ **Google Chrome** (Manifest V3)
-- ✅ **Arc** 
+- ✅ **Google Chrome**
+- ✅ **Arc**
+- ✅ **Mozilla Firefox**
 - ✅ **Microsoft Edge**
 - ✅ **Brave**
 - ✅ **Opera**
 - ✅ **Any Chromium based browser**
 
-Perfect for **Cursor users** who want to automate their local testing and development workflows!
+Also perfect for **Cursor users** who want to automate their local testing and development workflows!
 
 ## 🎬 What You Can Do
 
