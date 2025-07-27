@@ -84,14 +84,14 @@ Also perfect for **Cursor users** who want to automate their local testing and d
 ### 1. Install the Browser Extension
 
 **For Chrome/Chromium browsers:**
-1. Download `opendia-chrome-1.0.6.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
+1. Download `opendia-chrome-1.1.0.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
 2. Extract the zip file to a folder
 3. Go to `chrome://extensions/` (or your browser's extension page)
 4. Enable "Developer mode"
 5. Click "Load unpacked" and select the extracted folder
 
 **For Firefox:**
-1. Download `opendia-firefox-1.0.6.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
+1. Download `opendia-firefox-1.1.0.zip` from [releases](https://github.com/aaronjmars/opendia/releases)
 2. Extract the zip file to a folder
 3. Go to `about:debugging#/runtime/this-firefox`
 4. Click "Load Temporary Add-on..."
