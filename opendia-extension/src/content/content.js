@@ -297,6 +297,9 @@ class BrowserAutomation {
         case "page_style":
           result = await this.handlePageStyle(data);
           break;
+        case "get_console_logs":
+          result = await this.getConsoleLogs(data);
+          break;
         case "ping":
           // Health check for background tab content script readiness
           result = { status: "ready", timestamp: Date.now(), url: window.location.href };
@@ -2771,6 +2774,54 @@ class BrowserAutomation {
     
     return css;
   }
+
+  // 📋 Console Logs Management
+  async getConsoleLogs(data) {
+    const {
+      level = 'all',
+      max_entries = 100,
+      since_timestamp,
+      include_stack_trace = false
+    } = data;
+
+    try {
+      // Get logs from the console capture system
+      const logs = consoleCapture.getLogs({
+        level,
+        max_entries,
+        since_timestamp,
+        include_stack_trace
+      });
+
+      const stats = consoleCapture.getStats();
+
+      return {
+        success: true,
+        logs,
+        stats,
+        meta: {
+          total_captured: stats.total,
+          filtered_count: logs.length,
+          level_filter: level,
+          max_entries,
+          since_timestamp: since_timestamp || 'beginning',
+          url: window.location.href,
+          timestamp: Date.now()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        logs: [],
+        stats: { total: 0, by_level: {} },
+        meta: {
+          url: window.location.href,
+          timestamp: Date.now()
+        }
+      };
+    }
+  }
 }
 
 // Theme Presets Database
@@ -2890,6 +2941,128 @@ const THEME_PRESETS = {
     `
   }
 };
+
+// 📋 Console Log Capture System
+class ConsoleLogCapture {
+  constructor() {
+    this.logs = [];
+    this.maxLogs = 1000; // Keep last 1000 logs to prevent memory issues
+    this.setupConsoleInterception();
+  }
+
+  setupConsoleInterception() {
+    const originalConsole = {
+      log: console.log,
+      info: console.info,
+      warn: console.warn,
+      error: console.error,
+      debug: console.debug
+    };
+
+    // Intercept console methods
+    ['log', 'info', 'warn', 'error', 'debug'].forEach(level => {
+      console[level] = (...args) => {
+        // Call original console method
+        originalConsole[level].apply(console, args);
+        
+        // Capture the log
+        this.captureLog(level, args);
+      };
+    });
+
+    // Also capture unhandled errors
+    window.addEventListener('error', (event) => {
+      this.captureLog('error', [`${event.message} at ${event.filename}:${event.lineno}:${event.colno}`, event.error]);
+    });
+
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+      this.captureLog('error', [`Unhandled Promise Rejection: ${event.reason}`]);
+    });
+  }
+
+  captureLog(level, args) {
+    const timestamp = Date.now();
+    const message = args.map(arg => {
+      if (typeof arg === 'object') {
+        try {
+          return JSON.stringify(arg, null, 2);
+        } catch (e) {
+          return '[Object - circular reference]';
+        }
+      }
+      return String(arg);
+    }).join(' ');
+
+    const logEntry = {
+      timestamp,
+      level,
+      message,
+      url: window.location.href,
+      stack: level === 'error' && args[1] && args[1].stack ? args[1].stack : null
+    };
+
+    this.logs.push(logEntry);
+
+    // Keep only the last maxLogs entries
+    if (this.logs.length > this.maxLogs) {
+      this.logs = this.logs.slice(-this.maxLogs);
+    }
+  }
+
+  getLogs(options = {}) {
+    const {
+      level = 'all',
+      max_entries = 100,
+      since_timestamp,
+      include_stack_trace = false
+    } = options;
+
+    let filteredLogs = this.logs;
+
+    // Filter by level
+    if (level !== 'all') {
+      filteredLogs = filteredLogs.filter(log => log.level === level);
+    }
+
+    // Filter by timestamp
+    if (since_timestamp) {
+      filteredLogs = filteredLogs.filter(log => log.timestamp >= since_timestamp);
+    }
+
+    // Sort by timestamp (most recent first)
+    filteredLogs = filteredLogs.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Limit entries
+    filteredLogs = filteredLogs.slice(0, max_entries);
+
+    // Format output
+    return filteredLogs.map(log => ({
+      timestamp: log.timestamp,
+      time: new Date(log.timestamp).toISOString(),
+      level: log.level,
+      message: log.message,
+      url: log.url,
+      ...(include_stack_trace && log.stack ? { stack: log.stack } : {})
+    }));
+  }
+
+  getStats() {
+    const stats = {
+      total: this.logs.length,
+      by_level: {}
+    };
+
+    this.logs.forEach(log => {
+      stats.by_level[log.level] = (stats.by_level[log.level] || 0) + 1;
+    });
+
+    return stats;
+  }
+}
+
+// Initialize console capture system
+const consoleCapture = new ConsoleLogCapture();
 
 // Initialize the automation system
 const browserAutomation = new BrowserAutomation();

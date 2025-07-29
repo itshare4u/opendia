@@ -20,19 +20,20 @@ function updateToolCount() {
     "page_analyze", "page_extract_content", "element_click", "element_fill",
     "element_get_state", "page_navigate", "page_wait_for", "page_scroll",
     "tab_create", "tab_close", "tab_list", "tab_switch",
-    "get_bookmarks", "add_bookmark", "get_history", "get_selected_text", "get_page_links"
+    "get_bookmarks", "add_bookmark", "get_history", "get_selected_text", "get_page_links",
+    "page_style", "get_console_logs"
   ];
   
   if (runtimeAPI?.id) {
     runtimeAPI.sendMessage({ action: "getToolCount" }, (response) => {
       if (!runtimeAPI.lastError && response?.toolCount) {
         toolCount.innerHTML = `<span class="tooltip">${response.toolCount}
-          <span class="tooltip-content">Available MCP Tools:\npage_analyze • page_extract_content • element_click • element_fill • element_get_state • page_navigate • page_wait_for • page_scroll • tab_create • tab_close • tab_list • tab_switch • get_bookmarks • add_bookmark • get_history • get_selected_text • get_page_links</span>
+          <span class="tooltip-content">Available MCP Tools:\npage_analyze • page_extract_content • element_click • element_fill • element_get_state • page_navigate • page_wait_for • page_scroll • tab_create • tab_close • tab_list • tab_switch • get_bookmarks • add_bookmark • get_history • get_selected_text • get_page_links • page_style • get_console_logs</span>
         </span>`;
       } else {
         // Fallback to calculating from background script
-        toolCount.innerHTML = `<span class="tooltip">17
-          <span class="tooltip-content">Available MCP Tools:\npage_analyze • page_extract_content • element_click • element_fill • element_get_state • page_navigate • page_wait_for • page_scroll • tab_create • tab_close • tab_list • tab_switch • get_bookmarks • add_bookmark • get_history • get_selected_text • get_page_links</span>
+        toolCount.innerHTML = `<span class="tooltip">19
+          <span class="tooltip-content">Available MCP Tools:\npage_analyze • page_extract_content • element_click • element_fill • element_get_state • page_navigate • page_wait_for • page_scroll • tab_create • tab_close • tab_list • tab_switch • get_bookmarks • add_bookmark • get_history • get_selected_text • get_page_links • page_style • get_console_logs</span>
         </span>`;
       }
     });

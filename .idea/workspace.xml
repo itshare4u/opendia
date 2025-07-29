@@ -4,7 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="02767edf-1824-4ba7-97c3-776e0b5ff960" name="Changes" comment="" />
+    <list default="true" id="02767edf-1824-4ba7-97c3-776e0b5ff960" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/opendia-extension/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/opendia-extension/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/opendia-extension/src/background/background.js" beforeDir="false" afterPath="$PROJECT_DIR$/opendia-extension/src/background/background.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/opendia-extension/src/content/content.js" beforeDir="false" afterPath="$PROJECT_DIR$/opendia-extension/src/content/content.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/opendia-extension/src/popup/popup.js" beforeDir="false" afterPath="$PROJECT_DIR$/opendia-extension/src/popup/popup.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/opendia-mcp/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/opendia-mcp/server.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -13,21 +19,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "itshare4u"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;itshare4u&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/itshare4u/opendia.git",
-    "accountId": "1d52753b-d819-4bfc-99cb-7d3c8e0d5eb4"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/itshare4u/opendia.git&quot;,
+    &quot;accountId&quot;: &quot;1d52753b-d819-4bfc-99cb-7d3c8e0d5eb4&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="30WxxVt70ofKV3W05S6FekGFlW5" />
   <component name="ProjectViewState">
     <option name="autoscrollFromSource" value="true" />
@@ -36,22 +42,22 @@
     <option name="openDirectoriesWithSingleClick" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.github.copilot.settings.mcp.McpConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.github.copilot.settings.mcp.McpConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -66,7 +72,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753757378264</updated>
-      <workItem from="1753757381261" duration="2043000" />
+      <workItem from="1753757381261" duration="3571000" />
     </task>
     <servers />
   </component>

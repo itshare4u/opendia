@@ -985,6 +985,46 @@ function getAvailableTools() {
         required: ["mode"]
       }
     },
+    {
+      name: "get_console_logs",
+      description: "📋 BACKGROUND TAB READY: Get console logs from any tab for debugging! Captures console.log, console.error, console.warn messages with timestamps. Perfect for debugging JavaScript issues and monitoring application behavior.",
+      inputSchema: {
+        type: "object",
+        examples: [
+          { level: "all" },  // Get all console messages
+          { level: "error", max_entries: 50 },  // Get only errors, limited to 50
+          { level: "warn", tab_id: 12345, since_timestamp: 1640995200000 }  // Get warnings from specific tab since timestamp
+        ],
+        properties: {
+          level: {
+            type: "string",
+            enum: ["all", "log", "info", "warn", "error", "debug"],
+            default: "all",
+            description: "Filter console messages by level. 'all' includes all types."
+          },
+          max_entries: {
+            type: "number",
+            default: 100,
+            minimum: 1,
+            maximum: 1000,
+            description: "Maximum number of console entries to return (most recent first)"
+          },
+          since_timestamp: {
+            type: "number",
+            description: "Only return console messages after this timestamp (milliseconds since epoch)"
+          },
+          include_stack_trace: {
+            type: "boolean",
+            default: false,
+            description: "Include stack trace information for error messages"
+          },
+          tab_id: {
+            type: "number",
+            description: "🎯 TARGET ANY TAB: Get console logs from specific background tab without switching! Perfect for monitoring multiple applications simultaneously."
+          }
+        }
+      }
+    },
   ];
 }
 
@@ -1064,6 +1104,9 @@ async function handleMCPRequest(message) {
         break;
       case "page_style":
         result = await sendToContentScript('page_style', params, params.tab_id);
+        break;
+      case "get_console_logs":
+        result = await sendToContentScript('get_console_logs', params, params.tab_id);
         break;
       default:
         throw new Error(`Unknown method: ${method}`);

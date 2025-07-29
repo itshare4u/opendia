@@ -498,6 +498,9 @@ function formatToolResult(toolName, result) {
     case "page_style":
       return formatPageStyleResult(result, metadata);
 
+    case "get_console_logs":
+      return formatConsoleLogsResult(result, metadata);
+
     default:
       // Legacy tools or unknown tools
       return JSON.stringify(result, null, 2);
@@ -999,6 +1002,70 @@ function formatPageStyleResult(result, metadata) {
   
   summary += `\n💡 **Tip:** Use mode="reset" to restore original page styling`;
   
+  return `${summary}\n\n${JSON.stringify(metadata, null, 2)}`;
+}
+
+function formatConsoleLogsResult(result, metadata) {
+  if (!result.success) {
+    return `📋 Console logs capture failed: ${result.error || "Unknown error"}\n\n${JSON.stringify(metadata, null, 2)}`;
+  }
+
+  const { logs, stats, meta } = result;
+  
+  let summary = `📋 Console Logs Captured from ${meta.url}\n\n`;
+  
+  // Stats summary
+  summary += `📊 **Statistics:**\n`;
+  summary += `• **Total captured:** ${stats.total} messages\n`;
+  summary += `• **Filtered results:** ${meta.filtered_count} messages\n`;
+  summary += `• **Level filter:** ${meta.level_filter}\n`;
+  if (meta.since_timestamp !== 'beginning') {
+    summary += `• **Time filter:** Since ${new Date(meta.since_timestamp).toLocaleString()}\n`;
+  }
+  
+  // Breakdown by level
+  if (stats.by_level && Object.keys(stats.by_level).length > 0) {
+    summary += `\n📈 **By Level:**\n`;
+    Object.entries(stats.by_level).forEach(([level, count]) => {
+      const emoji = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : level === 'info' ? 'ℹ️' : level === 'debug' ? '🐛' : '📝';
+      summary += `• ${emoji} **${level.toUpperCase()}:** ${count}\n`;
+    });
+  }
+
+  // Recent logs
+  if (logs && logs.length > 0) {
+    summary += `\n📝 **Recent Console Messages:**\n`;
+    logs.slice(0, 10).forEach((log, index) => {
+      const emoji = log.level === 'error' ? '❌' : log.level === 'warn' ? '⚠️' : log.level === 'info' ? 'ℹ️' : log.level === 'debug' ? '🐛' : '📝';
+      const time = new Date(log.timestamp).toLocaleTimeString();
+      summary += `\n${index + 1}. ${emoji} **[${time}] ${log.level.toUpperCase()}**\n`;
+      
+      // Truncate long messages
+      let message = log.message;
+      if (message.length > 200) {
+        message = message.substring(0, 200) + '...';
+      }
+      summary += `   ${message}\n`;
+      
+      // Add stack trace for errors if available
+      if (log.stack && log.level === 'error') {
+        const stackLines = log.stack.split('\n').slice(0, 3);
+        summary += `   📍 Stack: ${stackLines.join(' → ')}\n`;
+      }
+    });
+    
+    if (logs.length > 10) {
+      summary += `\n... and ${logs.length - 10} more messages\n`;
+    }
+  } else {
+    summary += `\n✅ No console messages found matching the filter criteria.\n`;
+  }
+
+  summary += `\n💡 **Tips:**\n`;
+  summary += `• Use level="error" to see only errors\n`;
+  summary += `• Use since_timestamp to get recent logs\n`;
+  summary += `• Use include_stack_trace=true for detailed error info\n`;
+
   return `${summary}\n\n${JSON.stringify(metadata, null, 2)}`;
 }
 
@@ -1510,6 +1577,37 @@ function getFallbackTools() {
           }
         },
         required: ["mode"]
+      }
+    },
+    {
+      name: "get_console_logs",
+      description: "📋 BACKGROUND TAB READY: Get console logs from any tab for debugging! Captures console.log, console.error, console.warn messages with timestamps. Perfect for debugging JavaScript issues and monitoring application behavior. (Extension required)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          level: {
+            type: "string",
+            enum: ["all", "log", "info", "warn", "error", "debug"],
+            default: "all",
+            description: "Filter console messages by level. 'all' includes all types."
+          },
+          max_entries: {
+            type: "number",
+            default: 100,
+            minimum: 1,
+            maximum: 1000,
+            description: "Maximum number of console entries to return (most recent first)"
+          },
+          since_timestamp: {
+            type: "number",
+            description: "Only return console messages after this timestamp (milliseconds since epoch)"
+          },
+          include_stack_trace: {
+            type: "boolean",
+            default: false,
+            description: "Include stack trace information for error messages"
+          }
+        }
       }
     },
   ];
